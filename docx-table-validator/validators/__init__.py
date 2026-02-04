@@ -1,9 +1,9 @@
 """
-validators - 規則驗證腳本模組
+validators - Rule Validation Scripts Module
 
-每個規則可以有對應的 Python 驗證腳本，提供精確的程式化驗證。
+Each rule can have a corresponding Python validation script for precise programmatic validation.
 
-用法：
+Usage:
     from validators.table_temperature_descending import validate
     errors = validate(table_data)
 """

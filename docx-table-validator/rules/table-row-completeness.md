@@ -1,69 +1,69 @@
 ---
 id: table-row-completeness
-title: 資料行完整性檢查
+title: Row Completeness Check
 category: table
 severity: ERROR
 target: table
 ---
 
-## 資料行完整性檢查
+## Row Completeness Check
 
-**嚴重程度:** ERROR
+**Severity:** ERROR
 
-當表格的第一欄位有值時，表示該行是有效的資料行，後續所有欄位都不可為空。
+When the first column of a table has a value, indicating it's a valid data row, all subsequent columns cannot be empty.
 
-### 目標識別
+### Target Identification
 
-**表格匹配條件：**
+**Table Matcher:**
 
 ```yaml
 matcher:
   type: any-table
-  # 此規則適用於所有表格
+  # This rule applies to all tables
 ```
 
-### 驗證邏輯
+### Validation Logic
 
-**規則：** 若 row[第一欄] 有值，則 row[其他所有欄位] 都必須有值。
+**Rule:** If row[first column] has value, then row[all other columns] must have values.
 
-**檢查流程：**
+**Check Process:**
 
-1. 檢查每一行的第一個欄位
-2. 若第一欄有值（非空）
-3. 則檢查該行的所有其他欄位
-4. 若有任何欄位為空，標記為錯誤
+1. Check first column of each row
+2. If first column has value (not empty)
+3. Then check all other columns in that row
+4. If any column is empty, flag as error
 
-**錯誤範例：**
-
-```
-| 編號 | 名稱   | 數量 | 備註 |
-|------|--------|------|------|
-| 001  | 產品A  | 100  | 正常 |
-| 002  | 產品B  |      |      |  ← 錯誤：編號有值，但數量和備註為空
-| 003  |        | 50   | 測試 |  ← 錯誤：編號有值，但名稱為空
-```
-
-**正確範例：**
+**Incorrect Example:**
 
 ```
-| 編號 | 名稱   | 數量 | 備註 |
-|------|--------|------|------|
-| 001  | 產品A  | 100  | 正常 |
-| 002  | 產品B  | 200  | 正常 |
-|      |        |      |      |  ← 正確：第一欄為空，整行可為空
+| ID   | Name      | Quantity | Notes  |
+|------|-----------|----------|--------|
+| 001  | Product A | 100      | Normal |
+| 002  | Product B |          |        |  ← Error: ID has value, but Quantity and Notes are empty
+| 003  |           | 50       | Test   |  ← Error: ID has value, but Name is empty
 ```
 
-**另一個正確範例（允許整行為空）：**
+**Correct Example:**
 
 ```
-| 編號 | 名稱   | 數量 |
-|------|--------|------|
-| 001  | 產品A  | 100  |
-|      |        |      |  ← 正確：第一欄為空時不檢查
-| 003  | 產品C  | 300  |
+| ID   | Name      | Quantity | Notes  |
+|------|-----------|----------|--------|
+| 001  | Product A | 100      | Normal |
+| 002  | Product B | 200      | Normal |
+|      |           |          |        |  ← Correct: First column is empty, entire row can be empty
 ```
 
-### 例外情況
+**Another Correct Example (empty rows allowed):**
 
-- 第一欄為空的行不觸發此規則（視為空白行或分隔行）
-- 表頭行不參與驗證
+```
+| ID   | Name      | Quantity |
+|------|-----------|----------|
+| 001  | Product A | 100      |
+|      |           |          |  ← Correct: Not checked when first column is empty
+| 003  | Product C | 300      |
+```
+
+### Exceptions
+
+- Rows with empty first column do not trigger this rule (treated as blank or separator rows)
+- Header row is not validated

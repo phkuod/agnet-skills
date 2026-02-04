@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-table_temperature_descending.py - 溫度遞減順序驗證
+table_temperature_descending.py - Temperature Descending Order Validation
 
-規則：當 Temperature 越高，攝氏溫度值應越低（遞減排序）
+Rule: When Temperature is higher, Celsius Value should be lower (descending order)
 
-用法：
+Usage:
     python validators/table_temperature_descending.py <table_json>
     
-    # 或作為模組使用
+    # Or use as module
     from validators.table_temperature_descending import validate
     errors = validate(table_data)
 """
@@ -20,21 +20,21 @@ from typing import List, Optional
 
 @dataclass
 class ValidationError:
-    """驗證錯誤"""
+    """Validation error"""
     row: int
     column: str
     message: str
     severity: str = "error"
     rule_id: str = "table-temperature-descending"
-    rule_name: str = "溫度遞減順序檢查"
+    rule_name: str = "Temperature Descending Order Check"
 
 
 def parse_number(value: str) -> Optional[float]:
-    """解析數值，無法解析時返回 None"""
+    """Parse numeric value, return None if unable to parse"""
     if not value or not value.strip():
         return None
     try:
-        # 移除常見的非數字字符
+        # Remove common non-numeric characters
         cleaned = value.strip().replace(',', '').replace(' ', '')
         return float(cleaned)
     except ValueError:
@@ -43,23 +43,23 @@ def parse_number(value: str) -> Optional[float]:
 
 def validate(table: dict) -> List[ValidationError]:
     """
-    驗證表格的溫度遞減順序
+    Validate table temperature descending order
     
     Args:
-        table: 表格資料，格式：
+        table: Table data in format:
             {
-                "headers": ["Temperature", "攝氏溫度值"],
+                "headers": ["Temperature", "Celsius Value"],
                 "rows": [["100", "80"], ["80", "60"], ...]
             }
     
     Returns:
-        驗證錯誤列表
+        List of validation errors
     """
     errors = []
     headers = table.get("headers", [])
     rows = table.get("rows", [])
     
-    # 找到目標欄位索引
+    # Find target column indices
     temp_col_idx = None
     celsius_col_idx = None
     
@@ -67,16 +67,16 @@ def validate(table: dict) -> List[ValidationError]:
         header_lower = header.strip().lower()
         if header_lower == "temperature":
             temp_col_idx = i
-        elif "攝氏溫度值" in header or "攝氏" in header:
+        elif "celsius" in header_lower or "celsius value" in header_lower:
             celsius_col_idx = i
     
     if temp_col_idx is None or celsius_col_idx is None:
-        # 無法匹配到必要欄位，規則不適用
+        # Cannot match required columns, rule not applicable
         return []
     
-    # 收集有效的資料點 (排除空值和非數值)
+    # Collect valid data points (exclude empty and non-numeric values)
     data_points = []
-    for row_idx, row in enumerate(rows, start=2):  # 從第2行開始（第1行是表頭）
+    for row_idx, row in enumerate(rows, start=2):  # Start from row 2 (row 1 is header)
         if temp_col_idx >= len(row) or celsius_col_idx >= len(row):
             continue
             
@@ -91,26 +91,26 @@ def validate(table: dict) -> List[ValidationError]:
             })
     
     if len(data_points) < 2:
-        # 資料點不足，無法驗證順序
+        # Not enough data points to validate order
         return []
     
-    # 依 Temperature 由高到低排序
+    # Sort by Temperature from high to low
     sorted_points = sorted(data_points, key=lambda x: x["temperature"], reverse=True)
     
-    # 檢查排序後的 celsius 是否遞減
+    # Check if sorted celsius values are descending
     for i in range(1, len(sorted_points)):
         prev = sorted_points[i - 1]
         curr = sorted_points[i]
         
-        # 如果 Temperature 降低，但 celsius 升高，則違反規則
+        # If Temperature decreases but celsius increases, rule violated
         if prev["temperature"] > curr["temperature"]:
             if curr["celsius"] > prev["celsius"]:
                 errors.append(ValidationError(
                     row=curr["row"],
-                    column="攝氏溫度值",
-                    message=f"溫度從 {prev['temperature']} 降到 {curr['temperature']}，"
-                           f"但攝氏溫度值從 {prev['celsius']} 升到 {curr['celsius']}，"
-                           f"應呈現遞減趨勢",
+                    column="Celsius Value",
+                    message=f"Temperature decreased from {prev['temperature']} to {curr['temperature']}, "
+                           f"but Celsius Value increased from {prev['celsius']} to {curr['celsius']}, "
+                           f"should show descending trend",
                     severity="error"
                 ))
     
@@ -118,13 +118,13 @@ def validate(table: dict) -> List[ValidationError]:
 
 
 def validate_from_json(json_path: str) -> List[dict]:
-    """從 JSON 檔案載入表格並驗證"""
+    """Load table from JSON file and validate"""
     with open(json_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
     
     all_errors = []
     
-    # 處理單個表格或多個表格
+    # Handle single table or multiple tables
     tables = data.get("tables", [data]) if "tables" in data else [data]
     
     for table in tables:
@@ -144,22 +144,22 @@ def validate_from_json(json_path: str) -> List[dict]:
 
 
 def main():
-    """命令行入口"""
+    """Command line entry point"""
     if len(sys.argv) < 2:
-        print("用法: python table_temperature_descending.py <table_json>")
-        print("範例: python table_temperature_descending.py tables.json")
+        print("Usage: python table_temperature_descending.py <table_json>")
+        print("Example: python table_temperature_descending.py tables.json")
         sys.exit(1)
     
     json_path = sys.argv[1]
     errors = validate_from_json(json_path)
     
     if errors:
-        print(f"發現 {len(errors)} 個錯誤:")
+        print(f"Found {len(errors)} error(s):")
         for error in errors:
-            print(f"  行 {error['row']}: {error['message']}")
+            print(f"  Row {error['row']}: {error['message']}")
         sys.exit(1)
     else:
-        print("✅ 驗證通過：溫度遞減順序正確")
+        print("✅ Validation passed: Temperature descending order is correct")
         sys.exit(0)
 
 

@@ -1,63 +1,64 @@
 ---
 id: table-temperature-descending
-title: 溫度遞減順序檢查
+title: Temperature Descending Order Check
 category: table
 severity: ERROR
 target: table
 script: validators/table_temperature_descending.py
 ---
 
-## 溫度遞減順序檢查
+## Temperature Descending Order Check
 
-**嚴重程度:** ERROR
+**Severity:** ERROR
 
-確保溫度表格中，當 Temperature 值越高時，對應的「攝氏溫度值」欄位數值應越低，整體呈現遞減排序。
+Ensure in temperature tables, when Temperature value is higher, the corresponding "Celsius Value" column should be lower, showing a descending pattern.
 
-### 目標識別
+### Target Identification
 
-**章節限定：**
+**Chapter Scope:**
 
 ```yaml
 scope:
-  chapters: [10] # 只在第 10 章套用此規則
+  chapters: [10] # Apply only in chapter 10
 ```
 
-**表格匹配條件：**
+**Table Matcher:**
 
 ```yaml
 matcher:
   type: column-headers
   columns:
     - Temperature
-    - 攝氏溫度值
+    - Celsius Value
 ```
 
-### 驗證邏輯
+### Validation Logic
 
-> **腳本驗證**: `validators/table_temperature_descending.py`
+> **Script Validation**: `validators/table_temperature_descending.py`
 
-**規則：** 依 Temperature 欄位由高到低排序時，「攝氏溫度值」欄位的數值必須呈現遞減（或相等）。
+**Rule:** When sorted by Temperature column from high to low, "Celsius Value" column must show descending (or equal) values.
 
-**錯誤範例：**
-
-```
-| Temperature | 攝氏溫度值 |
-|-------------|------------|
-| 100         | 50         |
-| 80          | 60         |  ← 錯誤：Temperature 降低，但攝氏溫度值反而升高
-```
-
-**正確範例：**
+**Incorrect Example:**
 
 ```
-| Temperature | 攝氏溫度值 |
-|-------------|------------|
-| 100         | 80         |
-| 80          | 60         |
-| 60          | 40         |
+| Temperature | Celsius Value |
+|-------------|---------------|
+| 100         | 50            |
+| 80          | 60            |  ← Error: Temperature decreased, but Celsius Value increased
+| 60          | 40            |
 ```
 
-### 例外情況
+**Correct Example:**
 
-- 空值不參與排序驗證
-- 非數值內容會被跳過並發出警告
+```
+| Temperature | Celsius Value |
+|-------------|---------------|
+| 100         | 80            |
+| 80          | 60            |
+| 60          | 40            |
+```
+
+### Exceptions
+
+- Empty values do not participate in order validation
+- Non-numeric content is skipped with a warning

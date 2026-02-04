@@ -1,88 +1,88 @@
 ---
 id: rule-id-here
-title: 規則標題
+title: Rule Title
 category: table | content | structure | format
 severity: ERROR | WARNING
 target: table | content
-script: validators/rule_script.py # 可選：對應的 Python 驗證腳本
+script: validators/rule_script.py # Optional: corresponding Python validation script
 ---
 
-## 規則標題
+## Rule Title
 
-**嚴重程度:** ERROR | WARNING
+**Severity:** ERROR | WARNING
 
-簡短說明此規則的用途和為什麼重要。
+Brief description of the rule's purpose and why it matters.
 
-### 目標識別
+### Target Identification
 
-**章節限定（可選）：**
+**Chapter Scope (Optional):**
 
 ```yaml
 scope:
-  chapters: [10, 11] # 只在第 10、11 章套用
-  chapter-pattern: "風險.*" # 章節名稱匹配正則
+  chapters: [10, 11] # Apply only in chapters 10, 11
+  chapter-pattern: "Risk.*" # Match chapter name pattern
 ```
 
-**表格匹配條件（當 target: table）：**
+**Table Matcher (when target: table):**
 
 ```yaml
 matcher:
   type: column-headers
   columns:
-    - 欄位名稱1
-    - 欄位名稱2
+    - Column Name 1
+    - Column Name 2
   match-mode: contains | exact
 ```
 
-**內容匹配條件（當 target: content）：**
+**Content Matcher (when target: content):**
 
 ```yaml
 matcher:
   type: regex
-  pattern: "正則表達式"
+  pattern: "regular expression"
   scope: all-text | paragraphs | headings
 ```
 
-### 驗證邏輯
+### Validation Logic
 
-> **腳本驗證**: `validators/rule_script.py`（可選）
+> **Script Validation**: `validators/rule_script.py` (optional)
 
-說明驗證的具體邏輯。若有對應腳本，AI 會優先使用腳本執行精確驗證。
+Describe the specific validation logic. If a corresponding script exists, AI will prioritize using the script for precise validation.
 
-**錯誤範例：**
-
-```
-| 欄位A | 欄位B |
-|-------|-------|
-| 值    |       |  ← 欄位B 為空，違反規則
-```
-
-**正確範例：**
+**Incorrect Example:**
 
 ```
-| 欄位A | 欄位B |
-|-------|-------|
-| 值    | 值    |  ← 所有欄位都有值
+| Column A | Column B |
+|----------|----------|
+| value    |          |  ← Column B is empty, violates rule
 ```
 
-### 例外情況
+**Correct Example:**
 
-說明此規則的例外情況（如果有）。
+```
+| Column A | Column B |
+|----------|----------|
+| value    | value    |  ← All fields have values
+```
+
+### Exceptions
+
+Describe exceptions to this rule (if any).
 
 ---
 
-## 開發驗證腳本
+## Developing Validation Scripts
 
-當規則需要精確的程式化驗證時，可以在 `validators/` 目錄建立對應的 Python 腳本：
+When a rule requires precise programmatic validation, create a corresponding Python script in the `validators/` directory:
 
-### 腳本模板
+### Script Template
 
 ```python
 #!/usr/bin/env python3
 """
-rule_script.py - 規則驗證腳本
+rule_script.py - Rule Validation Script
 
-用法：
+Usage:
     python validators/rule_script.py <table_json>
 
     from validators.rule_script import validate
@@ -99,24 +99,24 @@ class ValidationError:
     message: str
     severity: str = "error"
     rule_id: str = "rule-id"
-    rule_name: str = "規則名稱"
+    rule_name: str = "Rule Name"
 
 def validate(table: dict) -> List[ValidationError]:
     """
-    驗證表格資料
+    Validate table data
 
     Args:
         table: {"headers": [...], "rows": [[...], ...]}
 
     Returns:
-        驗證錯誤列表
+        List of validation errors
     """
     errors = []
-    # 驗證邏輯
+    # Validation logic
     return errors
 ```
 
-### 命名規範
+### Naming Convention
 
-- 規則檔案：`rules/{category}-{rule-name}.md`
-- 腳本檔案：`validators/{category}_{rule_name}.py`（將 `-` 改為 `_`）
+- Rule file: `rules/{category}-{rule-name}.md`
+- Script file: `validators/{category}_{rule_name}.py` (replace `-` with `_`)

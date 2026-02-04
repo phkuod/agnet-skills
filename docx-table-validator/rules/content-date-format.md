@@ -1,20 +1,20 @@
 ---
 id: content-date-format
-title: 日期格式一致性
+title: Date Format Consistency
 category: content
 severity: WARNING
 target: content
 ---
 
-## 日期格式一致性
+## Date Format Consistency
 
-**嚴重程度:** WARNING
+**Severity:** WARNING
 
-確保文件中的日期格式統一，提升可讀性和專業度。
+Ensure date formats in the document are uniform, improving readability and professionalism.
 
-### 目標識別
+### Target Identification
 
-**內容匹配條件：**
+**Content Matcher:**
 
 ```yaml
 matcher:
@@ -23,28 +23,28 @@ matcher:
   scope: all-text
 ```
 
-### 驗證邏輯
+### Validation Logic
 
-**標準日期格式：** YYYY-MM-DD 或 YYYY年MM月DD日
+**Standard Date Formats:** YYYY-MM-DD or YYYY/MM/DD
 
-檢測到的日期應符合標準格式。
+Detected dates should conform to standard format.
 
-**錯誤範例：**
-
-```
-完成日期：2024/1/5
-更新時間：24-01-05
-截止日：1月5日
-```
-
-**正確範例：**
+**Incorrect Example:**
 
 ```
-完成日期：2024-01-05
-更新時間：2024年01月05日
-截止日：2024-01-05
+Completion date: 2024/1/5
+Update time: 24-01-05
+Deadline: Jan 5
 ```
 
-### 例外情況
+**Correct Example:**
 
-表格內的日期由表格規則處理。
+```
+Completion date: 2024-01-05
+Update time: 2024/01/05
+Deadline: 2024-01-05
+```
+
+### Exceptions
+
+Dates within tables are handled by table rules.

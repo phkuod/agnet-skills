@@ -1,219 +1,219 @@
 ---
 name: docx-table-validator
-description: 驗證 DOCX 文件中的表格和內容。根據 rules/ 目錄中定義的規則進行兩階段驗證：(1) 識別目標 (2) 套用規則。產生 Markdown 格式的驗證報告。
+description: Validate tables and content in DOCX documents. Performs two-phase validation based on rules defined in the rules/ directory: (1) Target identification (2) Apply rules. Generates Markdown validation reports.
 dependencies:
-  - anthropics/skills/docx # 依賴官方 DOCX SKILL 進行文件解析
+  - anthropics/skills/docx  # Depends on official DOCX SKILL for document parsing
 ---
 
-# DOCX 文件驗證器
+# DOCX Document Validator
 
-驗證 Word 文件 (.docx) 中的表格內容和文字內容的正確性、一致性和格式規範。
+Validate correctness, consistency, and formatting of tables and text content in Word documents (.docx).
 
-## 概述
+## Overview
 
-此技能提供兩階段驗證流程：
+This skill provides a two-phase validation workflow:
 
-1. **識別目標** - 根據 column headers 識別表格，或使用 regex 抓取內容
-2. **套用規則** - 對識別的目標執行驗證規則
+1. **Target Identification** - Identify tables by column headers, or extract content using regex
+2. **Apply Rules** - Execute validation rules on identified targets
 
-## DOCX 文件解析
+## DOCX Document Parsing
 
-> **依賴**: 使用 [Anthropic DOCX SKILL](https://github.com/anthropics/skills/blob/main/skills/docx/SKILL.md) 進行文件解析
+> **Dependency**: Uses [Anthropic DOCX SKILL](https://github.com/anthropics/skills/blob/main/skills/docx/SKILL.md) for document parsing
 
-### 讀取文件內容
+### Reading Document Content
 
-**方式 1：使用 Pandoc 轉換 Markdown（推薦用於快速分析）**
+**Method 1: Convert to Markdown using Pandoc (recommended for quick analysis)**
 
 ```bash
 pandoc document.docx -o output.md
 ```
 
-**方式 2：解包 OOXML 取得原始 XML（精確表格結構）**
+**Method 2: Unpack OOXML for raw XML (precise table structure)**
 
 ```bash
-# 使用官方 DOCX SKILL 的 unpack 腳本
+# Use official DOCX SKILL unpack script
 python ooxml/scripts/unpack.py document.docx ./unpacked/
 
-# 主要檔案：
-# - word/document.xml  # 主文件內容
-# - word/comments.xml  # 註解
+# Key files:
+# - word/document.xml  # Main document content
+# - word/comments.xml  # Comments
 ```
 
-**方式 3：使用本 SKILL 的提取腳本**
+**Method 3: Use this SKILL's extraction script**
 
 ```bash
 python scripts/extract_tables.py document.docx --chapter 10 --output tables.json
 ```
 
-### 表格提取流程
+### Table Extraction Workflow
 
 ```
-DOCX 檔案
+DOCX File
     ↓
-[DOCX SKILL] 解包/轉換
+[DOCX SKILL] Unpack/Convert
     ↓
-識別章節 → 定位表格 → 提取欄位和內容
+Identify Chapter → Locate Tables → Extract Fields and Content
     ↓
-輸出 JSON 結構化資料
+Output JSON Structured Data
 ```
 
 ---
 
-## 兩階段驗證流程
+## Two-Phase Validation Workflow
 
-### 階段 1：識別目標
+### Phase 1: Target Identification
 
-#### 章節限定（可選）
+#### Chapter Scope (Optional)
 
 ```yaml
 scope:
-  chapters: [10]               # 只在第 10 章
-  chapters: [10, 11, 12]       # 在第 10、11、12 章
-  chapter-pattern: '風險.*'    # 章節名稱匹配
+  chapters: [10]               # Apply only in chapter 10
+  chapters: [10, 11, 12]       # Apply in chapters 10, 11, 12
+  chapter-pattern: 'Risk.*'    # Match chapter name pattern
 ```
 
-#### 表格識別（使用 column headers）
+#### Table Identification (using column headers)
 
 ```yaml
 matcher:
   type: column-headers
   columns:
-    - 風險編號
-    - 風險描述
-    - 影響程度
+    - Risk ID
+    - Description
+    - Impact Level
 ```
 
-#### 內容識別（使用 regex）
+#### Content Identification (using regex)
 
 ```yaml
 matcher:
   type: regex
-  pattern: '\d{4}[-/年]\d{1,2}[-/月]\d{1,2}'
+  pattern: '\d{4}[-/]\d{1,2}[-/]\d{1,2}'
   scope: all-text
 ```
 
-### 階段 2：套用規則
+### Phase 2: Apply Rules
 
-對識別到的目標執行驗證，檢查是否符合規則定義的條件。
+Execute validation on identified targets, checking if they meet rule-defined conditions.
 
 ---
 
-## 規則結構
+## Rule Structure
 
-規則檔案位於 `rules/` 目錄：
+Rule files are located in the `rules/` directory:
 
 ```
 rules/
-├── _sections.md           # 規則分類定義
-├── _template.md           # 規則檔案模板
-├── table-*.md             # 表格驗證規則
-└── content-*.md           # 內容驗證規則
+├── _sections.md           # Rule category definitions
+├── _template.md           # Rule file template
+├── table-*.md             # Table validation rules
+└── content-*.md           # Content validation rules
 ```
 
-## 規則分類
+## Rule Categories
 
-| 分類     | 前綴         | 影響程度 | 說明                           |
-| -------- | ------------ | -------- | ------------------------------ |
-| 表格驗證 | `table-`     | CRITICAL | 必填欄位、值域限制、跨欄位關聯 |
-| 內容驗證 | `content-`   | HIGH     | 日期格式、術語一致性           |
-| 結構驗證 | `structure-` | MEDIUM   | 章節順序、必要章節             |
-| 格式驗證 | `format-`    | LOW      | 字體、間距等樣式               |
+| Category             | Prefix       | Impact   | Description                                            |
+| -------------------- | ------------ | -------- | ------------------------------------------------------ |
+| Table Validation     | `table-`     | CRITICAL | Required fields, allowed values, cross-field relations |
+| Content Validation   | `content-`   | HIGH     | Date format, terminology consistency                   |
+| Structure Validation | `structure-` | MEDIUM   | Chapter order, required sections                       |
+| Format Validation    | `format-`    | LOW      | Fonts, spacing, styles                                 |
 
-## 現有規則
+## Existing Rules
 
-### 表格驗證 (table-\*)
+### Table Validation (table-\*)
 
-- `table-required-fields.md` - 必填欄位檢查
-- `table-allowed-values.md` - 值域限制檢查
-- `table-conditional-required.md` - 條件必填檢查
-- `table-temperature-descending.md` - 溫度遞減順序
-- `table-row-completeness.md` - 行完整性檢查
+- `table-required-fields.md` - Required fields check
+- `table-allowed-values.md` - Allowed values check
+- `table-conditional-required.md` - Conditional required check
+- `table-temperature-descending.md` - Temperature descending order
+- `table-row-completeness.md` - Row completeness check
 
-### 內容驗證 (content-\*)
+### Content Validation (content-\*)
 
-- `content-date-format.md` - 日期格式一致性
-- `content-terminology.md` - 術語一致性
+- `content-date-format.md` - Date format consistency
+- `content-terminology.md` - Terminology consistency
 
 ---
 
-## 使用方式
+## Usage
 
-### 方式 1：AI 直接驗證
+### Method 1: AI Direct Validation
 
-請 AI 讀取 DOCX 檔案並套用規則：
+Ask AI to read DOCX file and apply rules:
 
 ```
-請使用 DOCX SKILL 讀取 document.docx，
-然後根據 docx-table-validator/rules/ 中的規則
-驗證第 10 章的表格，產生驗證報告。
+Please use DOCX SKILL to read document.docx,
+then validate tables in chapter 10 according to
+docx-table-validator/rules/, and generate a validation report.
 ```
 
-### 方式 2：使用腳本
+### Method 2: Using Scripts
 
 ```bash
-# 1. 提取表格（使用本 SKILL 腳本）
+# 1. Extract tables (using this SKILL's script)
 python scripts/extract_tables.py document.docx --chapter 10 --output tables.json
 
-# 2. 執行驗證
+# 2. Execute validation
 python scripts/validate_table.py tables.json --rules rules/ --output results.json
 
-# 3. 產生報告
+# 3. Generate report
 python scripts/generate_report.py results.json --output report.md
 ```
 
-### 方式 3：結合官方 DOCX SKILL
+### Method 3: Combined with Official DOCX SKILL
 
 ```bash
-# 使用官方 DOCX SKILL 解包
+# Use official DOCX SKILL to unpack
 python ooxml/scripts/unpack.py document.docx ./unpacked/
 
-# 然後本 SKILL 的腳本可讀取 XML
+# Then this SKILL's script can read XML
 python scripts/extract_tables.py ./unpacked/ --output tables.json
 ```
 
 ---
 
-## 新增規則
+## Adding New Rules
 
-1. 複製 `rules/_template.md`
-2. 根據分類命名：`{category}-{rule-name}.md`
-3. 填寫 frontmatter 和規則內容
-4. 規則會自動被載入使用
+1. Copy `rules/_template.md`
+2. Name according to category: `{category}-{rule-name}.md`
+3. Fill in frontmatter and rule content
+4. Rules will be automatically loaded
 
 ---
 
-## 報告格式
+## Report Format
 
 ```markdown
-# 📋 文件驗證報告
+# 📋 Document Validation Report
 
-## 📊 摘要
+## 📊 Summary
 
-| 項目       | 數量 |
-| ---------- | ---- |
-| 驗證項目數 | 5    |
-| ❌ 錯誤    | 3    |
-| ⚠️ 警告    | 2    |
+| Item            | Count |
+| --------------- | ----- |
+| Validated Items | 5     |
+| ❌ Errors       | 3     |
+| ⚠️ Warnings     | 2     |
 
-## 📑 詳細結果
+## 📑 Detailed Results
 
-### 表格 1：風險評估表 ❌
+### Table 1: Risk Assessment ❌
 
-| 行號 | 欄位     | 規則         | 問題     |
-| ---- | -------- | ------------ | -------- |
-| 3    | 風險描述 | 必填欄位檢查 | 欄位為空 |
+| Row | Column      | Rule            | Issue          |
+| --- | ----------- | --------------- | -------------- |
+| 3   | Description | Required Fields | Field is empty |
 ```
 
 ---
 
-## 依賴
+## Dependencies
 
-### 官方 DOCX SKILL（文件解析）
+### Official DOCX SKILL (Document Parsing)
 
-- pandoc - 文字提取
-- python ooxml 腳本 - XML 解包
+- pandoc - Text extraction
+- python ooxml scripts - XML unpacking
 
-### 本 SKILL 腳本
+### This SKILL's Scripts
 
 ```bash
 pip install python-docx lxml

@@ -1,46 +1,50 @@
-# 術語定義表
+# Terminology Definitions
 
-用於檢查文件內術語一致性。當驗證規則指定「術語一致性」檢查時，會參照此檔案。
+Defines standard terminology to ensure consistency across documents.
 
-## 使用方式
+## Usage
 
-- **standard**: 標準術語（文件中應使用此寫法）
-- **variants**: 常見的變體寫法（應統一為標準術語）
+1. List standard terms and common variants
+2. Validation script will check if document uses non-standard variants
+3. Suggest replacing with standard term when variant is found
 
-## 術語列表
+---
 
-### 技術術語
+## Technical Terms
 
-| 標準術語   | 常見變體                               |
-| ---------- | -------------------------------------- |
-| API        | api, Api, A.P.I.                       |
-| 使用者介面 | 用戶界面, UI, 用戶介面, user interface |
-| 資料庫     | 数据库, DB, database, 數據庫           |
-| 伺服器     | 服务器, server, Server                 |
-| 前端       | 前台, frontend, front-end              |
-| 後端       | 后台, backend, back-end                |
+| Standard Term  | Common Variants                                     |
+| -------------- | --------------------------------------------------- |
+| API            | api, Api, A.P.I., Application Programming Interface |
+| User Interface | user interface, UI, GUI, graphical user interface   |
+| Database       | database, DB, data base                             |
+| Server         | server, svr, backend                                |
+| Client         | client, frontend, front-end                         |
 
-### 風險相關術語
+## Project Terms
 
-| 標準術語 | 常見變體                            |
-| -------- | ----------------------------------- |
-| 風險     | 危险, risk, Risk                    |
-| 緩解     | 减缓, mitigate, 減緩                |
-| 影響程度 | 影响程度, impact, 嚴重程度          |
-| 發生機率 | 发生概率, probability, 機率, 可能性 |
+| Standard Term   | Common Variants                                |
+| --------------- | ---------------------------------------------- |
+| Risk Assessment | risk assessment, RA, risk analysis             |
+| Impact Level    | impact level, impact, severity                 |
+| Mitigation      | mitigation, mitigation measure, countermeasure |
 
-### 文件術語
+## Status Terms
 
-| 標準術語 | 常見變體                          |
-| -------- | --------------------------------- |
-| 需求規格 | 需求规格, requirements, 需求 spec |
-| 測試案例 | 测试用例, test case, TC           |
-| 設計文件 | 设计文档, design doc, 設計 doc    |
+| Standard Term | Common Variants                           |
+| ------------- | ----------------------------------------- |
+| Completed     | completed, done, finished, complete       |
+| In Progress   | in progress, ongoing, active, in-progress |
+| Pending       | pending, waiting, on hold                 |
+| Cancelled     | cancelled, canceled, aborted              |
 
-## 自訂術語
+---
 
-請在下方新增專案特定的術語：
+## Adding New Terms
 
-| 標準術語 | 常見變體 |
-| -------- | -------- |
-|          |          |
+Add new terms in the format:
+
+```
+| Standard Term | variant1, variant2, variant3 |
+```
+
+Variants are case-insensitive during matching.

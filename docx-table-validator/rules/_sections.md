@@ -1,26 +1,26 @@
-# 規則分類
+# Rule Categories
 
-定義所有規則分類、優先順序和說明。
-分類 ID（括號內）是規則檔案的前綴名稱。
+Defines all rule categories, priority order, and descriptions.
+Category ID (in parentheses) is the prefix used for rule filenames.
 
 ---
 
-## 1. 表格驗證 (table)
+## 1. Table Validation (table)
 
 **Impact:** CRITICAL  
-**Description:** 驗證 DOCX 文件中的表格內容，包括必填欄位、值域限制和格式檢查。
+**Description:** Validate table content in DOCX documents, including required fields, allowed values, and format checks.
 
-## 2. 內容驗證 (content)
+## 2. Content Validation (content)
 
 **Impact:** HIGH  
-**Description:** 驗證文件內容的一致性，包括術語統一、日期格式等。
+**Description:** Validate document content consistency, including terminology uniformity and date formats.
 
-## 3. 結構驗證 (structure)
+## 3. Structure Validation (structure)
 
 **Impact:** MEDIUM  
-**Description:** 驗證文件結構的完整性，包括章節順序、必要章節存在。
+**Description:** Validate document structure completeness, including chapter order and required sections.
 
-## 4. 格式驗證 (format)
+## 4. Format Validation (format)
 
 **Impact:** LOW  
-**Description:** 驗證文件格式規範，包括字體、間距等樣式檢查。
+**Description:** Validate document formatting standards, including fonts, spacing, and styles.

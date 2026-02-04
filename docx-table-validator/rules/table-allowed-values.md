@@ -1,63 +1,63 @@
 ---
 id: table-allowed-values
-title: 值域限制檢查
+title: Allowed Values Check
 category: table
 severity: ERROR
 target: table
 ---
 
-## 值域限制檢查
+## Allowed Values Check
 
-**嚴重程度:** ERROR
+**Severity:** ERROR
 
-確保特定欄位的值在允許的值域範圍內。非標準值可能導致資料不一致。
+Ensure specific column values are within the allowed range. Non-standard values may cause data inconsistency.
 
-### 目標識別
+### Target Identification
 
-**表格匹配條件：**
+**Table Matcher:**
 
 ```yaml
 matcher:
   type: column-headers
   columns:
-    - 影響程度
-    - 發生機率
+    - Impact Level
+    - Probability
 ```
 
-### 驗證邏輯
+### Validation Logic
 
-檢查指定欄位的值是否在允許列表中。
+Check that column values are in the allowed list.
 
-**欄位: 影響程度**
-允許值：
+**Column: Impact Level**
+Allowed values:
 
-- 高
-- 中
-- 低
+- High
+- Medium
+- Low
 
-**欄位: 發生機率**
-允許值：
+**Column: Probability**
+Allowed values:
 
-- 高
-- 中
-- 低
+- High
+- Medium
+- Low
 
-**錯誤範例：**
-
-```
-| 風險編號 | 影響程度 | 發生機率 |
-|----------|----------|----------|
-| R001     | 嚴重     | 很高     |  ← "嚴重"、"很高" 不在允許值中
-```
-
-**正確範例：**
+**Incorrect Example:**
 
 ```
-| 風險編號 | 影響程度 | 發生機率 |
-|----------|----------|----------|
-| R001     | 高       | 高       |
+| Risk ID | Impact Level | Probability |
+|---------|--------------|-------------|
+| R001    | Severe       | Very High   |  ← "Severe" and "Very High" not in allowed values
 ```
 
-### 例外情況
+**Correct Example:**
 
-空值不觸發此規則（由 `table-required-fields` 處理）。
+```
+| Risk ID | Impact Level | Probability |
+|---------|--------------|-------------|
+| R001    | High         | High        |
+```
+
+### Exceptions
+
+Empty values do not trigger this rule (handled by `table-required-fields`).

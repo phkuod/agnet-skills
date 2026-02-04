@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-extract_tables.py - 從 DOCX 文件中提取指定章節的表格
+extract_tables.py - Extract tables from specified chapters in DOCX files
 
-用法：
+Usage:
     python extract_tables.py <docx_file> --chapter <chapter_number> --output <output_file>
     
-範例：
+Example:
     python extract_tables.py document.docx --chapter 10 --output tables.json
 """
 
@@ -20,26 +20,26 @@ try:
     from docx.table import Table
     from docx.text.paragraph import Paragraph
 except ImportError:
-    print("錯誤：需要安裝 python-docx 套件")
-    print("請執行：pip install python-docx")
+    print("Error: python-docx package is required")
+    print("Please run: pip install python-docx")
     sys.exit(1)
 
 
 def find_chapter_start(doc: Document, chapter_number: int) -> int:
     """
-    找到指定章節的起始段落索引
+    Find the starting paragraph index of specified chapter
     
     Args:
-        doc: Word 文件物件
-        chapter_number: 章節編號
+        doc: Word document object
+        chapter_number: Chapter number
         
     Returns:
-        段落索引，找不到時返回 -1
+        Paragraph index, -1 if not found
     """
     patterns = [
-        rf'^{chapter_number}[\.\s]',          # "10." 或 "10 "
-        rf'^第\s*{chapter_number}\s*章',      # "第10章"
+        rf'^{chapter_number}[\.\s]',          # "10." or "10 "
         rf'^Chapter\s*{chapter_number}\b',    # "Chapter 10"
+        rf'^Section\s*{chapter_number}\b',    # "Section 10"
     ]
     
     for i, para in enumerate(doc.paragraphs):
@@ -52,21 +52,21 @@ def find_chapter_start(doc: Document, chapter_number: int) -> int:
 
 def find_chapter_end(doc: Document, start_index: int, chapter_number: int) -> int:
     """
-    找到章節的結束位置（下一章節的開始或文件結尾）
+    Find the end position of chapter (start of next chapter or end of document)
     
     Args:
-        doc: Word 文件物件
-        start_index: 當前章節起始索引
-        chapter_number: 當前章節編號
+        doc: Word document object
+        start_index: Current chapter start index
+        chapter_number: Current chapter number
         
     Returns:
-        結束段落索引
+        End paragraph index
     """
     next_chapter = chapter_number + 1
     patterns = [
         rf'^{next_chapter}[\.\s]',
-        rf'^第\s*{next_chapter}\s*章',
         rf'^Chapter\s*{next_chapter}\b',
+        rf'^Section\s*{next_chapter}\b',
     ]
     
     for i in range(start_index + 1, len(doc.paragraphs)):
@@ -80,13 +80,13 @@ def find_chapter_end(doc: Document, start_index: int, chapter_number: int) -> in
 
 def extract_table_data(table: Table) -> dict:
     """
-    提取表格資料
+    Extract table data
     
     Args:
-        table: Word 表格物件
+        table: Word table object
         
     Returns:
-        包含 headers 和 rows 的字典
+        Dictionary containing headers and rows
     """
     rows = []
     for row in table.rows:
@@ -103,7 +103,7 @@ def extract_table_data(table: Table) -> dict:
 
 
 def get_chapter_title(doc: Document, para_index: int) -> str:
-    """取得章節標題"""
+    """Get chapter title"""
     if 0 <= para_index < len(doc.paragraphs):
         return doc.paragraphs[para_index].text.strip()
     return ""
@@ -111,45 +111,45 @@ def get_chapter_title(doc: Document, para_index: int) -> str:
 
 def extract_tables_from_chapter(docx_path: str, chapter_number: int) -> dict:
     """
-    從指定章節提取所有表格
+    Extract all tables from specified chapter
     
     Args:
-        docx_path: DOCX 檔案路徑
-        chapter_number: 章節編號
+        docx_path: DOCX file path
+        chapter_number: Chapter number
         
     Returns:
-        包含所有表格資料的字典
+        Dictionary containing all table data
     """
     doc = Document(docx_path)
     
-    # 找到章節範圍
+    # Find chapter range
     start_idx = find_chapter_start(doc, chapter_number)
     if start_idx == -1:
         return {
             "source_file": Path(docx_path).name,
-            "chapter": f"第 {chapter_number} 章（未找到）",
-            "error": f"找不到第 {chapter_number} 章",
+            "chapter": f"Chapter {chapter_number} (not found)",
+            "error": f"Chapter {chapter_number} not found",
             "tables": []
         }
     
     end_idx = find_chapter_end(doc, start_idx, chapter_number)
     chapter_title = get_chapter_title(doc, start_idx)
     
-    # 取得文件的 XML 結構來定位表格位置
-    # python-docx 的 tables 是全文件的，需要判斷位置
+    # Get document XML structure to locate table positions
+    # python-docx tables are document-wide, need to determine position
     tables_data = []
     table_index = 0
     
-    # 遍歷文件的 body 元素
+    # Iterate through document body elements
     body = doc.element.body
     current_para_idx = 0
     
     for element in body:
-        if element.tag.endswith('p'):  # 段落
+        if element.tag.endswith('p'):  # Paragraph
             current_para_idx += 1
-        elif element.tag.endswith('tbl'):  # 表格
+        elif element.tag.endswith('tbl'):  # Table
             if start_idx <= current_para_idx < end_idx:
-                # 這個表格在目標章節內
+                # This table is in target chapter
                 if table_index < len(doc.tables):
                     table = doc.tables[table_index]
                     table_data = extract_table_data(table)
@@ -167,13 +167,13 @@ def extract_tables_from_chapter(docx_path: str, chapter_number: int) -> dict:
 
 def extract_all_tables(docx_path: str) -> dict:
     """
-    提取文件中的所有表格
+    Extract all tables from document
     
     Args:
-        docx_path: DOCX 檔案路徑
+        docx_path: DOCX file path
         
     Returns:
-        包含所有表格資料的字典
+        Dictionary containing all table data
     """
     doc = Document(docx_path)
     
@@ -185,49 +185,49 @@ def extract_all_tables(docx_path: str) -> dict:
     
     return {
         "source_file": Path(docx_path).name,
-        "chapter": "全文件",
+        "chapter": "All Document",
         "tables": tables_data
     }
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="從 DOCX 文件中提取表格",
+        description="Extract tables from DOCX files",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-範例：
-    # 提取第 10 章的表格
+Examples:
+    # Extract tables from chapter 10
     python extract_tables.py document.docx --chapter 10 --output tables.json
     
-    # 提取所有表格
+    # Extract all tables
     python extract_tables.py document.docx --output tables.json
         """
     )
     
-    parser.add_argument("docx_file", help="DOCX 檔案路徑")
-    parser.add_argument("--chapter", "-c", type=int, help="章節編號（不指定則提取全文件）")
-    parser.add_argument("--output", "-o", help="輸出 JSON 檔案路徑（不指定則輸出到標準輸出）")
+    parser.add_argument("docx_file", help="DOCX file path")
+    parser.add_argument("--chapter", "-c", type=int, help="Chapter number (if not specified, extract all)")
+    parser.add_argument("--output", "-o", help="Output JSON file path (if not specified, output to stdout)")
     
     args = parser.parse_args()
     
-    # 檢查檔案是否存在
+    # Check if file exists
     if not Path(args.docx_file).exists():
-        print(f"錯誤：找不到檔案 {args.docx_file}", file=sys.stderr)
+        print(f"Error: File not found {args.docx_file}", file=sys.stderr)
         sys.exit(1)
     
-    # 提取表格
+    # Extract tables
     if args.chapter:
         result = extract_tables_from_chapter(args.docx_file, args.chapter)
     else:
         result = extract_all_tables(args.docx_file)
     
-    # 輸出結果
+    # Output result
     output_json = json.dumps(result, ensure_ascii=False, indent=2)
     
     if args.output:
         Path(args.output).write_text(output_json, encoding="utf-8")
-        print(f"已輸出到 {args.output}")
-        print(f"找到 {len(result['tables'])} 個表格")
+        print(f"Output saved to {args.output}")
+        print(f"Found {len(result['tables'])} table(s)")
     else:
         print(output_json)
 

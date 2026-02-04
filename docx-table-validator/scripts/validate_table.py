@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-validate_table.py - 驗證表格內容
+validate_table.py - Validate table content
 
-用法：
+Usage:
     python validate_table.py <tables_json> --rules <rules_dir> --output <output_file>
     
-範例：
+Example:
     python validate_table.py tables.json --rules rules/ --output results.json
 """
 
@@ -20,7 +20,7 @@ from typing import Optional
 
 @dataclass
 class ValidationError:
-    """驗證錯誤"""
+    """Validation error"""
     table_index: int
     row: int
     column: str
@@ -32,7 +32,7 @@ class ValidationError:
 
 @dataclass 
 class RuleDefinition:
-    """規則定義"""
+    """Rule definition"""
     id: str
     name: str
     type: str  # not-empty, allowed-values, pattern, conditional, cross-reference, glossary
@@ -42,7 +42,7 @@ class RuleDefinition:
 
 def parse_markdown_rules(md_content: str) -> dict:
     """
-    解析 Markdown 格式的規則檔案
+    Parse Markdown format rule file
     
     Returns:
         {
@@ -63,23 +63,23 @@ def parse_markdown_rules(md_content: str) -> dict:
     for line in lines:
         line_stripped = line.strip()
         
-        # 識別章節
-        if line_stripped.startswith('## 表格識別'):
+        # Identify sections
+        if line_stripped.startswith('## Table') or line_stripped.startswith('### Target'):
             current_section = 'matcher'
             continue
-        elif line_stripped.startswith('## 驗證規則'):
+        elif line_stripped.startswith('## Validation') or line_stripped.startswith('### Validation'):
             current_section = 'rules'
             continue
         
-        # 解析表格識別
+        # Parse table matcher
         if current_section == 'matcher':
             if line_stripped.startswith('- '):
                 col = line_stripped[2:].strip()
                 result["table_matcher"]["columns"].append(col)
         
-        # 解析規則
+        # Parse rules
         elif current_section == 'rules':
-            # 規則標題: ### 規則名稱 [ERROR]
+            # Rule title: ### Rule Name [ERROR]
             match = re.match(r'^###\s+(.+?)\s*\[(ERROR|WARNING)\]', line_stripped, re.IGNORECASE)
             if match:
                 if current_rule:
@@ -106,36 +106,36 @@ def parse_markdown_rules(md_content: str) -> dict:
                 continue
             
             if current_rule:
-                # 收集規則內容
+                # Collect rule content
                 if line_stripped.startswith('- '):
                     item = line_stripped[2:].strip()
                     current_rule["config"]["columns"].append(item)
                     current_rule["config"]["values"].append(item)
                 
-                # 檢測規則類型
-                if '不可為空' in line_stripped or '必填' in line_stripped:
+                # Detect rule type
+                if 'empty' in line_stripped.lower() or 'required' in line_stripped.lower():
                     current_rule["type"] = "not-empty"
-                elif '只能填入' in line_stripped or '允許值' in line_stripped:
+                elif 'allowed' in line_stripped.lower() or 'values' in line_stripped.lower():
                     current_rule["type"] = "allowed-values"
-                elif '格式' in line_stripped and '正則' in line_stripped:
+                elif 'format' in line_stripped.lower() and 'regex' in line_stripped.lower():
                     current_rule["type"] = "pattern"
-                elif '當' in line_stripped and '時' in line_stripped:
+                elif 'when' in line_stripped.lower() and 'then' in line_stripped.lower():
                     current_rule["type"] = "conditional"
-                elif '必須存在於' in line_stripped or '參照' in line_stripped:
+                elif 'reference' in line_stripped.lower():
                     current_rule["type"] = "cross-reference"
-                elif '術語' in line_stripped:
+                elif 'terminology' in line_stripped.lower():
                     current_rule["type"] = "glossary"
                 
-                # 提取正則表達式
+                # Extract regex pattern
                 pattern_match = re.search(r'`([^^].*?)`', line_stripped)
                 if pattern_match and current_rule["type"] == "pattern":
                     current_rule["config"]["pattern"] = pattern_match.group(1)
                 
-                # 記錄描述
+                # Record description
                 if line_stripped:
                     current_rule["config"]["description"].append(line_stripped)
     
-    # 添加最後一條規則
+    # Add last rule
     if current_rule:
         result["rules"].append(current_rule)
     
@@ -143,7 +143,7 @@ def parse_markdown_rules(md_content: str) -> dict:
 
 
 def load_rules_from_directory(rules_dir: str) -> list:
-    """載入規則目錄中的所有規則檔案"""
+    """Load all rule files from rules directory"""
     rules_path = Path(rules_dir)
     all_rules = []
     
@@ -157,7 +157,7 @@ def load_rules_from_directory(rules_dir: str) -> list:
 
 
 def match_table_to_rules(table: dict, rules_list: list) -> Optional[dict]:
-    """根據表格欄位匹配適用的規則"""
+    """Match applicable rules based on table columns"""
     table_headers = set(h.strip() for h in table.get("headers", []))
     
     for rules in rules_list:
@@ -165,7 +165,7 @@ def match_table_to_rules(table: dict, rules_list: list) -> Optional[dict]:
         if matcher_columns and matcher_columns.issubset(table_headers):
             return rules
     
-    # 如果沒有匹配，返回 common.md 的規則（如果存在）
+    # If no match, return common.md rules (if exists)
     for rules in rules_list:
         if rules.get("source_file") == "common.md":
             return rules
@@ -174,13 +174,13 @@ def match_table_to_rules(table: dict, rules_list: list) -> Optional[dict]:
 
 
 def validate_not_empty(table: dict, rule: dict) -> list:
-    """驗證必填欄位"""
+    """Validate required fields"""
     errors = []
     columns = rule["config"]["columns"]
     headers = table.get("headers", [])
     
-    # 如果沒有指定欄位，檢查所有欄位
-    if not columns or columns == ["所有欄位"]:
+    # If no columns specified, check all columns
+    if not columns or columns == ["All columns"]:
         columns = headers
     
     for row_idx, row in enumerate(table.get("rows", []), start=2):
@@ -196,7 +196,7 @@ def validate_not_empty(table: dict, rule: dict) -> list:
                             column=col_name,
                             rule_id=rule["id"],
                             rule_name=rule["name"],
-                            message="欄位為空",
+                            message="Field is empty",
                             severity=rule["severity"]
                         ))
     
@@ -204,17 +204,17 @@ def validate_not_empty(table: dict, rule: dict) -> list:
 
 
 def validate_allowed_values(table: dict, rule: dict) -> list:
-    """驗證值域限制"""
+    """Validate allowed values"""
     errors = []
     columns = rule["config"]["columns"]
     allowed_values = set(rule["config"]["values"])
     headers = table.get("headers", [])
     
-    # 過濾出實際的欄位名稱（不是值域列表中的值）
+    # Filter actual column names (not values in the list)
     actual_columns = [c for c in columns if c in headers]
     
     if not actual_columns:
-        # 如果規則描述中沒有明確欄位，嘗試從描述中提取
+        # If no explicit columns in rule description, try to extract from description
         for desc in rule["config"].get("description", []):
             for header in headers:
                 if header in desc and header not in actual_columns:
@@ -233,7 +233,7 @@ def validate_allowed_values(table: dict, rule: dict) -> list:
                             column=col_name,
                             rule_id=rule["id"],
                             rule_name=rule["name"],
-                            message=f"值 \"{value}\" 不在允許值列表中",
+                            message=f"Value \"{value}\" not in allowed values list",
                             severity=rule["severity"]
                         ))
     
@@ -241,7 +241,7 @@ def validate_allowed_values(table: dict, rule: dict) -> list:
 
 
 def validate_pattern(table: dict, rule: dict) -> list:
-    """驗證格式（正則表達式）"""
+    """Validate format (regex)"""
     errors = []
     pattern = rule["config"].get("pattern")
     columns = rule["config"]["columns"]
@@ -270,7 +270,7 @@ def validate_pattern(table: dict, rule: dict) -> list:
                             column=col_name,
                             rule_id=rule["id"],
                             rule_name=rule["name"],
-                            message=f"格式不符合：{pattern}",
+                            message=f"Format does not match: {pattern}",
                             severity=rule["severity"]
                         ))
     
@@ -278,7 +278,7 @@ def validate_pattern(table: dict, rule: dict) -> list:
 
 
 def validate_table(table: dict, rules: dict) -> list:
-    """驗證單個表格"""
+    """Validate single table"""
     all_errors = []
     
     for rule in rules.get("rules", []):
@@ -290,31 +290,31 @@ def validate_table(table: dict, rules: dict) -> list:
             all_errors.extend(validate_allowed_values(table, rule))
         elif rule_type == "pattern":
             all_errors.extend(validate_pattern(table, rule))
-        # conditional 和 cross-reference 需要更複雜的邏輯，由 AI 處理
+        # conditional and cross-reference require more complex logic, handled by AI
     
     return all_errors
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="驗證表格內容",
+        description="Validate table content",
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
     
-    parser.add_argument("tables_json", help="表格 JSON 檔案（由 extract_tables.py 產生）")
-    parser.add_argument("--rules", "-r", required=True, help="規則目錄路徑")
-    parser.add_argument("--glossary", "-g", help="術語表檔案路徑")
-    parser.add_argument("--output", "-o", help="輸出 JSON 檔案路徑")
+    parser.add_argument("tables_json", help="Table JSON file (generated by extract_tables.py)")
+    parser.add_argument("--rules", "-r", required=True, help="Rules directory path")
+    parser.add_argument("--glossary", "-g", help="Glossary file path")
+    parser.add_argument("--output", "-o", help="Output JSON file path")
     
     args = parser.parse_args()
     
-    # 讀取表格資料
+    # Read table data
     tables_data = json.loads(Path(args.tables_json).read_text(encoding="utf-8"))
     
-    # 載入規則
+    # Load rules
     rules_list = load_rules_from_directory(args.rules)
     
-    # 驗證每個表格
+    # Validate each table
     results = {
         "source_file": tables_data.get("source_file"),
         "chapter": tables_data.get("chapter"),
@@ -322,7 +322,7 @@ def main():
     }
     
     for table in tables_data.get("tables", []):
-        # 匹配規則
+        # Match rules
         matched_rules = match_table_to_rules(table, rules_list)
         
         table_result = {
@@ -344,17 +344,17 @@ def main():
         
         results["validation_results"].append(table_result)
     
-    # 輸出結果
+    # Output result
     output_json = json.dumps(results, ensure_ascii=False, indent=2)
     
     if args.output:
         Path(args.output).write_text(output_json, encoding="utf-8")
         
-        # 統計
+        # Statistics
         total_errors = sum(len(r["errors"]) for r in results["validation_results"])
         total_warnings = sum(len(r["warnings"]) for r in results["validation_results"])
-        print(f"驗證完成：{total_errors} 個錯誤, {total_warnings} 個警告")
-        print(f"結果已輸出到 {args.output}")
+        print(f"Validation complete: {total_errors} error(s), {total_warnings} warning(s)")
+        print(f"Results saved to {args.output}")
     else:
         print(output_json)
 

@@ -1,52 +1,52 @@
 ---
 id: table-conditional-required
-title: 條件必填檢查
+title: Conditional Required Check
 category: table
 severity: ERROR
 target: table
 ---
 
-## 條件必填檢查
+## Conditional Required Check
 
-**嚴重程度:** ERROR
+**Severity:** ERROR
 
-當某欄位符合特定條件時，另一欄位必須有值。這確保相關資料的完整性。
+When a column matches a specific condition, another column must have a value. This ensures related data completeness.
 
-### 目標識別
+### Target Identification
 
-**表格匹配條件：**
+**Table Matcher:**
 
 ```yaml
 matcher:
   type: column-headers
   columns:
-    - 影響程度
-    - 緩解措施
+    - Impact Level
+    - Mitigation
 ```
 
-### 驗證邏輯
+### Validation Logic
 
-**條件規則：**
+**Conditional Rule:**
 
-- 當「影響程度」= 「高」時，「緩解措施」不可為空
+- When "Impact Level" = "High", "Mitigation" cannot be empty
 
-**錯誤範例：**
-
-```
-| 風險編號 | 影響程度 | 緩解措施 |
-|----------|----------|----------|
-| R001     | 高       |          |  ← 影響程度為高，但緩解措施為空
-```
-
-**正確範例：**
+**Incorrect Example:**
 
 ```
-| 風險編號 | 影響程度 | 緩解措施     |
-|----------|----------|--------------|
-| R001     | 高       | 增加備援系統 |
-| R002     | 低       |              |  ← 影響程度為低，緩解措施可為空
+| Risk ID | Impact Level | Mitigation |
+|---------|--------------|------------|
+| R001    | High         |            |  ← Impact is High, but Mitigation is empty
 ```
 
-### 例外情況
+**Correct Example:**
 
-當觸發條件欄位為空時，不觸發此規則。
+```
+| Risk ID | Impact Level | Mitigation           |
+|---------|--------------|----------------------|
+| R001    | High         | Add redundant system |
+| R002    | Low          |                      |  ← Impact is Low, Mitigation can be empty
+```
+
+### Exceptions
+
+When trigger condition column is empty, this rule is not triggered.

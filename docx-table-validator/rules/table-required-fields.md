@@ -1,60 +1,60 @@
 ---
 id: table-required-fields
-title: 必填欄位檢查
+title: Required Fields Check
 category: table
 severity: ERROR
 target: table
 ---
 
-## 必填欄位檢查
+## Required Fields Check
 
-**嚴重程度:** ERROR
+**Severity:** ERROR
 
-確保表格中的必填欄位不可為空。空值可能導致資料不完整或後續處理失敗。
+Ensure required fields in tables are not empty. Empty values may cause incomplete data or processing failures.
 
-### 目標識別
+### Target Identification
 
-**表格匹配條件：**
+**Table Matcher:**
 
 ```yaml
 matcher:
   type: column-headers
   columns:
-    - 風險編號
-    - 風險描述
-    - 影響程度
-    - 發生機率
+    - Risk ID
+    - Description
+    - Impact Level
+    - Probability
 ```
 
-### 驗證邏輯
+### Validation Logic
 
-檢查指定欄位的所有儲存格是否有值。
+Check that all cells in specified columns have values.
 
-**必填欄位：**
+**Required Fields:**
 
-- 風險編號
-- 風險描述
-- 影響程度
-- 發生機率
+- Risk ID
+- Description
+- Impact Level
+- Probability
 
-**錯誤範例：**
-
-```
-| 風險編號 | 風險描述 | 影響程度 | 發生機率 |
-|----------|----------|----------|----------|
-| R001     | 系統故障 | 高       | 中       |
-| R002     |          | 低       |          |  ← 風險描述、發生機率為空
-```
-
-**正確範例：**
+**Incorrect Example:**
 
 ```
-| 風險編號 | 風險描述 | 影響程度 | 發生機率 |
-|----------|----------|----------|----------|
-| R001     | 系統故障 | 高       | 中       |
-| R002     | 資料遺失 | 低       | 低       |
+| Risk ID | Description    | Impact Level | Probability |
+|---------|----------------|--------------|-------------|
+| R001    | System failure | High         | Medium      |
+| R002    |                | Low          |             |  ← Description and Probability are empty
 ```
 
-### 例外情況
+**Correct Example:**
 
-無。
+```
+| Risk ID | Description    | Impact Level | Probability |
+|---------|----------------|--------------|-------------|
+| R001    | System failure | High         | Medium      |
+| R002    | Data loss      | Low          | Low         |
+```
+
+### Exceptions
+
+None.

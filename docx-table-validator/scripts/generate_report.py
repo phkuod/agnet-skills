@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-generate_report.py - 產生 Markdown 驗證報告
+generate_report.py - Generate Markdown validation report
 
-用法：
+Usage:
     python generate_report.py <results_json> --output <output_file>
     
-範例：
+Example:
     python generate_report.py results.json --output report.md
 """
 
@@ -16,7 +16,7 @@ from pathlib import Path
 
 
 def generate_summary(results: dict) -> dict:
-    """產生摘要統計"""
+    """Generate summary statistics"""
     validation_results = results.get("validation_results", [])
     
     total_tables = len(validation_results)
@@ -34,24 +34,24 @@ def generate_summary(results: dict) -> dict:
 
 
 def get_overall_status(summary: dict) -> tuple:
-    """取得整體狀態"""
+    """Get overall status"""
     if summary["total_errors"] > 0:
-        return "❌ 發現問題", "error"
+        return "❌ Issues Found", "error"
     elif summary["total_warnings"] > 0:
-        return "⚠️ 有警告", "warning"
+        return "⚠️ Has Warnings", "warning"
     else:
-        return "✅ 全部通過", "pass"
+        return "✅ All Passed", "pass"
 
 
 def generate_table_section(table_result: dict) -> str:
-    """產生單個表格的報告區塊"""
+    """Generate report section for single table"""
     table_index = table_result.get("table_index", "?")
     headers = table_result.get("headers", [])
     errors = table_result.get("errors", [])
     warnings = table_result.get("warnings", [])
-    matched_rules = table_result.get("matched_rules", "無")
+    matched_rules = table_result.get("matched_rules", "None")
     
-    # 決定狀態圖示
+    # Determine status icon
     if errors:
         status_icon = "❌"
     elif warnings:
@@ -59,23 +59,23 @@ def generate_table_section(table_result: dict) -> str:
     else:
         status_icon = "✅"
     
-    # 表格名稱（使用欄位組合）
-    table_name = "、".join(headers[:3]) if headers else "未知表格"
+    # Table name (using column combination)
+    table_name = ", ".join(headers[:3]) if headers else "Unknown Table"
     if len(headers) > 3:
         table_name += "..."
     
     lines = [
-        f"### 表格 {table_index}：{table_name} {status_icon}",
+        f"### Table {table_index}: {table_name} {status_icon}",
         "",
-        f"**識別欄位**: {', '.join(headers)}",
-        f"**套用規則**: {matched_rules}",
+        f"**Identified Columns**: {', '.join(headers)}",
+        f"**Applied Rules**: {matched_rules}",
         ""
     ]
     
     if errors or warnings:
         lines.extend([
-            "| 行號 | 欄位 | 規則 | 問題 | 嚴重程度 |",
-            "|------|------|------|------|----------|"
+            "| Row | Column | Rule | Issue | Severity |",
+            "|-----|--------|------|-------|----------|"
         ])
         
         for error in errors:
@@ -88,56 +88,56 @@ def generate_table_section(table_result: dict) -> str:
                 f"| {warning['row']} | {warning['column']} | {warning['rule_name']} | {warning['message']} | ⚠️ Warning |"
             )
     else:
-        lines.append("✅ 所有檢查通過")
+        lines.append("✅ All checks passed")
     
     lines.append("")
     return "\n".join(lines)
 
 
 def generate_report(results: dict) -> str:
-    """產生完整報告"""
+    """Generate complete report"""
     source_file = results.get("source_file", "unknown.docx")
-    chapter = results.get("chapter", "未指定")
+    chapter = results.get("chapter", "Not specified")
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     summary = generate_summary(results)
     overall_status, _ = get_overall_status(summary)
     
-    # 報告標頭
+    # Report header
     report_lines = [
-        "# 📋 文件驗證報告",
+        "# 📋 Document Validation Report",
         "",
-        f"**文件**: `{source_file}`",
-        f"**章節**: {chapter}",
-        f"**驗證時間**: {timestamp}",
-        f"**驗證結果**: {overall_status}",
-        "",
-        "---",
-        "",
-        "## 📊 摘要",
-        "",
-        "| 項目 | 數量 |",
-        "|------|------|",
-        f"| 驗證表格數 | {summary['total_tables']} |",
-        f"| ❌ 錯誤 (Error) | {summary['total_errors']} |",
-        f"| ⚠️ 警告 (Warning) | {summary['total_warnings']} |",
-        f"| ✅ 通過 | {summary['passed_tables']} |",
+        f"**Document**: `{source_file}`",
+        f"**Chapter**: {chapter}",
+        f"**Validation Time**: {timestamp}",
+        f"**Result**: {overall_status}",
         "",
         "---",
         "",
-        "## 📑 詳細結果",
+        "## 📊 Summary",
+        "",
+        "| Item | Count |",
+        "|------|-------|",
+        f"| Tables Validated | {summary['total_tables']} |",
+        f"| ❌ Errors | {summary['total_errors']} |",
+        f"| ⚠️ Warnings | {summary['total_warnings']} |",
+        f"| ✅ Passed | {summary['passed_tables']} |",
+        "",
+        "---",
+        "",
+        "## 📑 Detailed Results",
         ""
     ]
     
-    # 各表格結果
+    # Each table result
     for table_result in results.get("validation_results", []):
         report_lines.append(generate_table_section(table_result))
     
-    # 報告結尾
+    # Report footer
     report_lines.extend([
         "---",
         "",
-        f"*報告產生於 {timestamp}*"
+        f"*Report generated at {timestamp}*"
     ])
     
     return "\n".join(report_lines)
@@ -145,26 +145,26 @@ def generate_report(results: dict) -> str:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="產生 Markdown 驗證報告",
+        description="Generate Markdown validation report",
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
     
-    parser.add_argument("results_json", help="驗證結果 JSON 檔案（由 validate_table.py 產生）")
-    parser.add_argument("--template", "-t", help="報告模板檔案（可選）")
-    parser.add_argument("--output", "-o", help="輸出 Markdown 檔案路徑")
+    parser.add_argument("results_json", help="Validation results JSON file (generated by validate_table.py)")
+    parser.add_argument("--template", "-t", help="Report template file (optional)")
+    parser.add_argument("--output", "-o", help="Output Markdown file path")
     
     args = parser.parse_args()
     
-    # 讀取驗證結果
+    # Read validation results
     results = json.loads(Path(args.results_json).read_text(encoding="utf-8"))
     
-    # 產生報告
+    # Generate report
     report = generate_report(results)
     
-    # 輸出
+    # Output
     if args.output:
         Path(args.output).write_text(report, encoding="utf-8")
-        print(f"報告已輸出到 {args.output}")
+        print(f"Report saved to {args.output}")
     else:
         print(report)
 

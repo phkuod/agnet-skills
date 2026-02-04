@@ -1,15 +1,15 @@
 {
   "source_file": "test_document.docx",
-  "chapter": "10. 溫度測試",
+  "chapter": "10. Temperature Test",
   "tables": [
     {
       "index": 1,
-      "headers": ["Temperature", "攝氏溫度值", "備註"],
+      "headers": ["Temperature", "Celsius Value", "Notes"],
       "rows": [
-        ["100", "80", "正常"],
-        ["80", "60", "正常"],
-        ["60", "70", "錯誤：應該比60低"],
-        ["40", "30", "正常"]
+        ["100", "80", "Normal"],
+        ["80", "60", "Normal"],
+        ["60", "70", "Error: Should be lower than 60"],
+        ["40", "30", "Normal"]
       ]
     }
   ]
