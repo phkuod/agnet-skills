@@ -13,7 +13,11 @@ script: validators/rule_script.py # Optional: corresponding Python validation sc
 
 Brief description of the rule's purpose and why it matters.
 
-### Target Identification
+---
+
+### Phase 1: Find Targets (找出符合條件的資料)
+
+Define how to identify the data to validate.
 
 **Chapter Scope (Optional):**
 
@@ -37,17 +41,31 @@ matcher:
 **Content Matcher (when target: content):**
 
 ```yaml
+# Option A: Regex matching
 matcher:
   type: regex
   pattern: "regular expression"
   scope: all-text | paragraphs | headings
+
+# Option B: Heading path matching
+matcher:
+  type: heading-path
+  path: "10.2 > Section Name"
+  scope: paragraphs
 ```
 
-### Validation Logic
+---
+
+### Phase 2: Apply Validation (執行驗證 pass/fail)
 
 > **Script Validation**: `validators/rule_script.py` (optional)
 
 Describe the specific validation logic. If a corresponding script exists, AI will prioritize using the script for precise validation.
+
+**Validation Conditions:**
+
+- Condition 1: ...
+- Condition 2: ...
 
 **Incorrect Example:**
 
@@ -64,6 +82,26 @@ Describe the specific validation logic. If a corresponding script exists, AI wil
 |----------|----------|
 | value    | value    |  ← All fields have values
 ```
+
+---
+
+### Phase 3: Collect Results (收集結果供 Report 使用)
+
+Results are automatically collected during validation. Each failure generates a result entry:
+
+```json
+{
+  "rule_id": "rule-id-here",
+  "status": "FAIL",
+  "target": { "table_index": 1, "row": 3, "column": "Column B" },
+  "message": "Description of the issue",
+  "severity": "error"
+}
+```
+
+**Pass criteria:** Describe what constitutes a PASS result.
+
+---
 
 ### Exceptions
 

@@ -1,220 +1,162 @@
 ---
 name: docx-table-validator
-description: Validate tables and content in DOCX documents. Performs two-phase validation based on rules defined in the rules/ directory: (1) Target identification (2) Apply rules. Generates Markdown validation reports.
+description: Validate tables and content in DOCX documents using rule-based validation. Use when asked to check, verify, or audit a Word document for data correctness, table completeness, terminology consistency, or formatting compliance. Also use when processing AIP-encrypted DOCX files for validation.
 dependencies:
-  - anthropics/skills/docx  # Depends on official DOCX SKILL for document parsing
+  - anthropics/skills/docx
+  - aip-decrypt
 ---
 
 # DOCX Document Validator
 
-Validate correctness, consistency, and formatting of tables and text content in Word documents (.docx).
+Validate correctness, consistency, and formatting of tables and text content in `.docx` files.
 
-## Overview
+## Workflow
 
-This skill provides a two-phase validation workflow:
+Copy this checklist and track progress:
 
-1. **Target Identification** - Identify tables by column headers, or extract content using regex
-2. **Apply Rules** - Execute validation rules on identified targets
+````
+Validation Progress:
+- [ ] Step 1: Decrypt document (if AIP-encrypted)
+- [ ] Step 2: Parse document content
+- [ ] Step 3: Run validation rules
+- [ ] Step 4: Generate report
 
-## DOCX Document Parsing
+```mermaid
+flowchart LR
+    Start([Start]) --> Encrypted{Encrypted?}
+    Encrypted -- Yes --> Decrypt[Step 1: Decrypt]
+    Encrypted -- No --> Parse[Step 2: Parse]
+    Decrypt --> Parse
+    Parse --> Validate[Step 3: Validate]
+    Validate --> Report[Step 4: Report]
+    Report --> End([End])
+````
 
-> **Dependency**: Uses [Anthropic DOCX SKILL](https://github.com/anthropics/skills/blob/main/skills/docx/SKILL.md) for document parsing
+````
 
-### Reading Document Content
+**Step 1: Decrypt** (skip if not encrypted)
 
-**Method 1: Convert to Markdown using Pandoc (recommended for quick analysis)**
+Use `aip-decrypt` SKILL to decrypt the file, producing a decrypted `.docx`.
 
-```bash
-pandoc document.docx -o output.md
-```
+**Step 2: Parse**
 
-**Method 2: Unpack OOXML for raw XML (precise table structure)**
+Use DOCX SKILL to read document content. Default: convert with `pandoc doc.docx -o output.md`. For precise table XML structure, unpack with OOXML: `python ooxml/scripts/unpack.py doc.docx ./unpacked/`.
 
-```bash
-# Use official DOCX SKILL unpack script
-python ooxml/scripts/unpack.py document.docx ./unpacked/
+**Step 3: Validate**
 
-# Key files:
-# - word/document.xml  # Main document content
-# - word/comments.xml  # Comments
-```
+Apply rules from `rules/` directory. Each rule follows three phases:
 
-**Method 3: Use this SKILL's extraction script**
+| Phase        | Action                                                |
+| ------------ | ----------------------------------------------------- |
+| **Find**     | Identify target tables/content using matchers         |
+| **Validate** | Check each target against rule conditions → PASS/FAIL |
+| **Collect**  | Store results for report                              |
 
-```bash
-python scripts/extract_tables.py document.docx --chapter 10 --output tables.json
-```
+**Step 4: Report**
 
-### Table Extraction Workflow
-
-```
-DOCX File
-    ↓
-[DOCX SKILL] Unpack/Convert
-    ↓
-Identify Chapter → Locate Tables → Extract Fields and Content
-    ↓
-Output JSON Structured Data
-```
+Generate a Markdown report from collected results.
+See [templates/report.md](templates/report.md) for format template.
+See [examples/sample-report.md](examples/sample-report.md) for complete example.
 
 ---
 
-## Two-Phase Validation Workflow
+## Target Matchers
 
-### Phase 1: Target Identification
+Matchers define what to validate (used in Find phase).
 
-#### Chapter Scope (Optional)
-
-```yaml
-scope:
-  chapters: [10]               # Apply only in chapter 10
-  chapters: [10, 11, 12]       # Apply in chapters 10, 11, 12
-  chapter-pattern: 'Risk.*'    # Match chapter name pattern
-```
-
-#### Table Identification (using column headers)
+**Table matcher** — identify tables by column headers:
 
 ```yaml
 matcher:
   type: column-headers
-  columns:
-    - Risk ID
-    - Description
-    - Impact Level
-```
+  columns: [Risk ID, Description, Impact Level]
+  match-mode: contains # or exact
+````
 
-#### Content Identification (using regex)
+**Content matcher** — find text by regex:
 
 ```yaml
 matcher:
   type: regex
   pattern: '\d{4}[-/]\d{1,2}[-/]\d{1,2}'
-  scope: all-text
+  scope: all-text # or paragraphs, headings
 ```
 
-### Phase 2: Apply Rules
+**Content matcher** — extract text under heading:
 
-Execute validation on identified targets, checking if they meet rule-defined conditions.
+```yaml
+matcher:
+  type: heading-path
+  path: "10.2 > Risk Summary"
+  scope: paragraphs
+```
+
+**Chapter scope** (optional, combinable with any matcher):
+
+```yaml
+scope:
+  chapters: [10, 11, 12]
+  chapter-pattern: "Risk.*"
+```
 
 ---
 
-## Rule Structure
+## Rules
 
-Rule files are located in the `rules/` directory:
+**Rule categories:** See [rules/\_sections.md](rules/_sections.md) for definitions.
+**Rule template:** See [rules/\_template.md](rules/_template.md) to create new rules.
 
-```
-rules/
-├── _sections.md           # Rule category definitions
-├── _template.md           # Rule file template
-├── table-*.md             # Table validation rules
-└── content-*.md           # Content validation rules
-```
+| Category  | Prefix       | Severity |
+| --------- | ------------ | -------- |
+| Table     | `table-`     | CRITICAL |
+| Content   | `content-`   | HIGH     |
+| Structure | `structure-` | MEDIUM   |
+| Format    | `format-`    | LOW      |
 
-## Rule Categories
+### Existing rules
 
-| Category             | Prefix       | Impact   | Description                                            |
-| -------------------- | ------------ | -------- | ------------------------------------------------------ |
-| Table Validation     | `table-`     | CRITICAL | Required fields, allowed values, cross-field relations |
-| Content Validation   | `content-`   | HIGH     | Date format, terminology consistency                   |
-| Structure Validation | `structure-` | MEDIUM   | Chapter order, required sections                       |
-| Format Validation    | `format-`    | LOW      | Fonts, spacing, styles                                 |
+**Table:** `table-required-fields` · `table-allowed-values` · `table-conditional-required` · `table-temperature-descending` · `table-row-completeness`
 
-## Existing Rules
+**Content:** `content-date-format` · `content-terminology` · `content-paragraph-extract`
 
-### Table Validation (table-\*)
+### Adding new rules
 
-- `table-required-fields.md` - Required fields check
-- `table-allowed-values.md` - Allowed values check
-- `table-conditional-required.md` - Conditional required check
-- `table-temperature-descending.md` - Temperature descending order
-- `table-row-completeness.md` - Row completeness check
-
-### Content Validation (content-\*)
-
-- `content-date-format.md` - Date format consistency
-- `content-terminology.md` - Terminology consistency
+1. Copy `rules/_template.md` → `rules/{category}-{name}.md`
+2. Set frontmatter: `id`, `title`, `category`, `severity`, `target`
+3. Define **Find** (matcher), **Validate** (logic + examples), **Collect** (auto)
+4. _(Optional)_ Add script: `validators/{category}_{name}.py`
 
 ---
 
-## Usage
+## Result format
 
-### Method 1: AI Direct Validation
+Each validation failure:
 
-Ask AI to read DOCX file and apply rules:
-
+```json
+{
+  "rule_id": "table-required-fields",
+  "status": "FAIL",
+  "target": { "table_index": 1, "row": 3, "column": "Description" },
+  "message": "Field is empty",
+  "severity": "error"
+}
 ```
-Please use DOCX SKILL to read document.docx,
-then validate tables in chapter 10 according to
-docx-table-validator/rules/, and generate a validation report.
-```
 
-### Method 2: Using Scripts
+---
+
+## Scripts
+
+Validation and report generation scripts in `scripts/`:
 
 ```bash
-# 1. Extract tables (using this SKILL's script)
-python scripts/extract_tables.py document.docx --chapter 10 --output tables.json
-
-# 2. Execute validation
-python scripts/validate_table.py tables.json --rules rules/ --output results.json
-
-# 3. Generate report
-python scripts/generate_report.py results.json --output report.md
-```
-
-### Method 3: Combined with Official DOCX SKILL
-
-```bash
-# Use official DOCX SKILL to unpack
-python ooxml/scripts/unpack.py document.docx ./unpacked/
-
-# Then this SKILL's script can read XML
-python scripts/extract_tables.py ./unpacked/ --output tables.json
+python scripts/validate_table.py tables.json --rules rules/ -o results.json
+python scripts/generate_report.py results.json -o report.md
 ```
 
 ---
 
-## Adding New Rules
+## Reference files
 
-1. Copy `rules/_template.md`
-2. Name according to category: `{category}-{rule-name}.md`
-3. Fill in frontmatter and rule content
-4. Rules will be automatically loaded
-
----
-
-## Report Format
-
-```markdown
-# 📋 Document Validation Report
-
-## 📊 Summary
-
-| Item            | Count |
-| --------------- | ----- |
-| Validated Items | 5     |
-| ❌ Errors       | 3     |
-| ⚠️ Warnings     | 2     |
-
-## 📑 Detailed Results
-
-### Table 1: Risk Assessment ❌
-
-| Row | Column      | Rule            | Issue          |
-| --- | ----------- | --------------- | -------------- |
-| 3   | Description | Required Fields | Field is empty |
-```
-
----
-
-## Dependencies
-
-### Official DOCX SKILL (Document Parsing)
-
-- pandoc - Text extraction
-- python ooxml scripts - XML unpacking
-
-### This SKILL's Scripts
-
-```bash
-pip install python-docx lxml
-```
+**Rules:** See [rules/](rules/) for all rule definitions
+**Glossary:** See [glossary/terms.md](glossary/terms.md) for terminology reference
+**Validators:** See [validators/](validators/) for Python validation scripts
