@@ -14,7 +14,7 @@ Extract and validate specific paragraph text from designated sections. Ensures c
 
 ---
 
-### Phase 1: Find Targets (找出符合條件的資料)
+### Phase 1: Find Targets
 
 **Chapter Scope:**
 
@@ -45,7 +45,7 @@ This will locate all paragraph text under the heading path `Chapter 10.2 → Sum
 
 ---
 
-### Phase 2: Apply Validation (執行驗證 pass/fail)
+### Phase 2: Apply Validation
 
 **Validation Logic:**
 
@@ -92,7 +92,7 @@ To extract all paragraphs under "10.2 > Risk Summary":
 
 ---
 
-### Phase 3: Collect Results (收集結果供 Report 使用)
+### Phase 3: Collect Results
 
 ```json
 {

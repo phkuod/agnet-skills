@@ -15,7 +15,7 @@ Brief description of the rule's purpose and why it matters.
 
 ---
 
-### Phase 1: Find Targets (找出符合條件的資料)
+### Phase 1: Find Targets
 
 Define how to identify the data to validate.
 
@@ -56,7 +56,7 @@ matcher:
 
 ---
 
-### Phase 2: Apply Validation (執行驗證 pass/fail)
+### Phase 2: Apply Validation
 
 > **Script Validation**: `validators/rule_script.py` (optional)
 
@@ -85,7 +85,7 @@ Describe the specific validation logic. If a corresponding script exists, AI wil
 
 ---
 
-### Phase 3: Collect Results (收集結果供 Report 使用)
+### Phase 3: Collect Results
 
 Results are automatically collected during validation. Each failure generates a result entry:
 

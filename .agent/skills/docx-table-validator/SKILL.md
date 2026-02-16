@@ -1,48 +1,46 @@
 ---
 name: docx-table-validator
-description: Validate tables and content in DOCX documents using rule-based validation. Use when asked to check, verify, or audit a Word document for data correctness, table completeness, terminology consistency, or formatting compliance. Also use when processing AIP-encrypted DOCX files for validation.
+description: Validate tables and content in DOCX documents using rule-based validation. Use when asked to "check this Word document", "validate the tables", "audit document data", "verify formatting compliance", "review document quality", or "check terminology consistency". Also handles AIP-encrypted DOCX files. Supports checking required fields, allowed values, date formats, terminology consistency, and structural completeness.
 dependencies:
   - anthropics/skills/docx
   - aip-decrypt
+metadata:
+  author: phkuo
+  version: 1.1.0
+  category: document-validation
+  tags: [docx, validation, tables, compliance, audit]
 ---
 
 # DOCX Document Validator
 
 Validate correctness, consistency, and formatting of tables and text content in `.docx` files.
 
-## Workflow
+## Instructions
 
 Copy this checklist and track progress:
 
-````
+```
 Validation Progress:
 - [ ] Step 1: Decrypt document (if AIP-encrypted)
 - [ ] Step 2: Parse document content
 - [ ] Step 3: Run validation rules
 - [ ] Step 4: Generate report
+```
 
-```mermaid
-flowchart LR
-    Start([Start]) --> Encrypted{Encrypted?}
-    Encrypted -- Yes --> Decrypt[Step 1: Decrypt]
-    Encrypted -- No --> Parse[Step 2: Parse]
-    Decrypt --> Parse
-    Parse --> Validate[Step 3: Validate]
-    Validate --> Report[Step 4: Report]
-    Report --> End([End])
-````
+### Step 1: Decrypt (skip if not encrypted)
 
-````
+Use `aip-decrypt` skill to decrypt the file, producing a decrypted `.docx`.
 
-**Step 1: Decrypt** (skip if not encrypted)
+### Step 2: Parse Document
 
-Use `aip-decrypt` SKILL to decrypt the file, producing a decrypted `.docx`.
+Use DOCX skill to read document content.
 
-**Step 2: Parse**
+- **Default method** — convert with pandoc: `pandoc doc.docx -o output.md`
+- **For precise table XML** — unpack with OOXML: `python ooxml/scripts/unpack.py doc.docx ./unpacked/`
 
-Use DOCX SKILL to read document content. Default: convert with `pandoc doc.docx -o output.md`. For precise table XML structure, unpack with OOXML: `python ooxml/scripts/unpack.py doc.docx ./unpacked/`.
+> Choose OOXML when tables contain merged cells, nested structures, or when pandoc output loses table formatting.
 
-**Step 3: Validate**
+### Step 3: Validate
 
 Apply rules from `rules/` directory. Each rule follows three phases:
 
@@ -52,59 +50,21 @@ Apply rules from `rules/` directory. Each rule follows three phases:
 | **Validate** | Check each target against rule conditions → PASS/FAIL |
 | **Collect**  | Store results for report                              |
 
-**Step 4: Report**
+**Matchers:** See [references/matchers.md](references/matchers.md) for full matcher documentation.
+
+### Step 4: Report
 
 Generate a Markdown report from collected results.
-See [templates/report.md](templates/report.md) for format template.
-See [examples/sample-report.md](examples/sample-report.md) for complete example.
 
----
-
-## Target Matchers
-
-Matchers define what to validate (used in Find phase).
-
-**Table matcher** — identify tables by column headers:
-
-```yaml
-matcher:
-  type: column-headers
-  columns: [Risk ID, Description, Impact Level]
-  match-mode: contains # or exact
-````
-
-**Content matcher** — find text by regex:
-
-```yaml
-matcher:
-  type: regex
-  pattern: '\d{4}[-/]\d{1,2}[-/]\d{1,2}'
-  scope: all-text # or paragraphs, headings
-```
-
-**Content matcher** — extract text under heading:
-
-```yaml
-matcher:
-  type: heading-path
-  path: "10.2 > Risk Summary"
-  scope: paragraphs
-```
-
-**Chapter scope** (optional, combinable with any matcher):
-
-```yaml
-scope:
-  chapters: [10, 11, 12]
-  chapter-pattern: "Risk.*"
-```
+- **Template:** [templates/report.md](templates/report.md)
+- **Example:** [examples/sample-report.md](examples/sample-report.md)
 
 ---
 
 ## Rules
 
-**Rule categories:** See [rules/\_sections.md](rules/_sections.md) for definitions.
-**Rule template:** See [rules/\_template.md](rules/_template.md) to create new rules.
+**Categories:** See [rules/\_sections.md](rules/_sections.md) for definitions.
+**Template:** See [rules/\_template.md](rules/_template.md) to create new rules.
 
 | Category  | Prefix       | Severity |
 | --------- | ------------ | -------- |
@@ -128,19 +88,73 @@ scope:
 
 ---
 
-## Result format
+## Examples
 
-Each validation failure:
+### Example 1: Validate a risk assessment document
 
-```json
-{
-  "rule_id": "table-required-fields",
-  "status": "FAIL",
-  "target": { "table_index": 1, "row": 3, "column": "Description" },
-  "message": "Field is empty",
-  "severity": "error"
-}
-```
+**User says:** "Check this risk assessment DOCX for data completeness"
+
+**Steps executed:**
+
+1. Parse with pandoc → `output.md`
+2. Apply rules: `table-required-fields`, `table-allowed-values`, `table-conditional-required`
+3. Generate report with per-table pass/fail details
+
+**Result:** Markdown report showing 3 tables validated, 5 errors, 2 warnings with row/column locations.
+
+### Example 2: Check terminology consistency
+
+**User says:** "Audit this document for terminology issues"
+
+**Steps executed:**
+
+1. Parse with pandoc → `output.md`
+2. Apply rule: `content-terminology` using [glossary/terms.md](glossary/terms.md)
+3. Report non-standard variants found
+
+**Result:** List of non-standard terms with suggested replacements (e.g., "DB" → "Database").
+
+### Example 3: Validate encrypted document
+
+**User says:** "Validate this AIP-encrypted DOCX"
+
+**Steps executed:**
+
+1. Decrypt using `aip-decrypt` skill → decrypted `.docx`
+2. Parse with pandoc → `output.md`
+3. Apply all applicable rules
+4. Generate report
+
+**Result:** Full validation report identical to unencrypted workflow.
+
+---
+
+## Troubleshooting
+
+### Error: No tables found in document
+
+**Cause:** Document was parsed as markdown but tables are embedded as images or non-standard XML.
+**Solution:** Use OOXML unpacking instead of pandoc: `python ooxml/scripts/unpack.py doc.docx ./unpacked/`
+
+### Error: Rule file not recognized
+
+**Cause:** Rule file missing YAML frontmatter or incorrect category prefix.
+**Solution:** Verify file follows `rules/{category}-{name}.md` naming and has required frontmatter fields (`id`, `title`, `category`, `severity`, `target`).
+
+### Error: AIP decryption failed
+
+**Cause:** Missing `aip-decrypt` skill or invalid credentials.
+**Solution:** Ensure `aip-decrypt` skill is installed and authentication is configured.
+
+### Error: Pandoc conversion loses table structure
+
+**Cause:** Complex tables with merged cells or nested content.
+**Solution:** Switch to OOXML parsing: `python ooxml/scripts/unpack.py doc.docx ./unpacked/`
+
+### Error: Matcher finds no matching tables
+
+**Cause:** Column headers in the document don't match the matcher's expected headers (case or wording mismatch).
+**Solution:** Check actual column headers in the parsed output and update the rule's matcher `columns` list to match exactly.
 
 ---
 
@@ -155,8 +169,10 @@ python scripts/generate_report.py results.json -o report.md
 
 ---
 
-## Reference files
+## Reference Files
 
-**Rules:** See [rules/](rules/) for all rule definitions
-**Glossary:** See [glossary/terms.md](glossary/terms.md) for terminology reference
-**Validators:** See [validators/](validators/) for Python validation scripts
+- **Matchers:** [references/matchers.md](references/matchers.md) — full matcher syntax and options
+- **Result format:** [references/result-format.md](references/result-format.md) — JSON result schema
+- **Rules:** [rules/](rules/) — all rule definitions
+- **Glossary:** [glossary/terms.md](glossary/terms.md) — terminology reference
+- **Validators:** [validators/](validators/) — Python validation scripts
