@@ -48,11 +48,11 @@ Extract text under a specific heading hierarchy:
 ```yaml
 matcher:
   type: heading-path
-  path: "10.2 > Risk Summary"
+  path: "10.2 -> Risk Summary"
   scope: paragraphs
 ```
 
-The `>` separator navigates the heading hierarchy. Text between the target heading and the next sibling heading is extracted.
+The `->` separator navigates the heading hierarchy. Text between the target heading and the next sibling heading is extracted.
 
 ---
 

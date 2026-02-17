@@ -1,14 +1,13 @@
 ---
 name: docx-table-validator
 description: Validate tables and content in DOCX documents using rule-based validation. Use when asked to "check this Word document", "validate the tables", "audit document data", "verify formatting compliance", "review document quality", or "check terminology consistency". Also handles AIP-encrypted DOCX files. Supports checking required fields, allowed values, date formats, terminology consistency, and structural completeness.
-dependencies:
-  - anthropics/skills/docx
-  - aip-decrypt
+compatibility: Requires anthropics/skills/docx skill for DOCX parsing and aip-decrypt skill for AIP-encrypted files.
 metadata:
   author: phkuo
-  version: 1.1.0
+  version: 1.2.0
   category: document-validation
   tags: [docx, validation, tables, compliance, audit]
+  dependencies: [anthropics/skills/docx, aip-decrypt]
 ---
 
 # DOCX Document Validator
