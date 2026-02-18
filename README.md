@@ -22,9 +22,9 @@ agnet-skills/
 
 ## 🎯 Available Skills
 
-| Skill                                           | Description                                                              |
-| ----------------------------------------------- | ------------------------------------------------------------------------ |
-| [docx-table-validator](./docx-table-validator/) | Validate tables and content in DOCX documents with rule-based validation |
+| Skill                               | Description                                                              |
+| ----------------------------------- | ------------------------------------------------------------------------ |
+| [docx-validator](./docx-validator/) | Validate tables and content in DOCX documents with rule-based validation |
 
 ## 🚀 Using Skills
 
@@ -37,7 +37,7 @@ Skills are designed to be used by AI agents. Each skill contains a `SKILL.md` fi
 ### Example Usage
 
 ```
-Please use the docx-table-validator skill to validate
+Please use the docx-validator skill to validate
 tables in chapter 10 of document.docx and generate a report.
 ```
 

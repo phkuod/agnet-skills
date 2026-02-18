@@ -58,7 +58,7 @@ dependencies:
 
 | Item            | Convention                 | Example                    |
 | --------------- | -------------------------- | -------------------------- |
-| Skill directory | lowercase with hyphens     | `docx-table-validator`     |
+| Skill directory | lowercase with hyphens     | `docx-validator`           |
 | SKILL.md        | Exactly `SKILL.md`         | Required                   |
 | Rule files      | `{category}-{name}.md`     | `table-required-fields.md` |
 | Scripts         | lowercase with underscores | `extract_tables.py`        |
