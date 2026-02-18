@@ -55,8 +55,8 @@ Apply rules from `rules/` directory. Each rule follows three phases:
 
 Generate a Markdown report from collected results.
 
-- **Template:** [templates/report.md](templates/report.md)
-- **Example:** [examples/sample-report.md](examples/sample-report.md)
+- **Template:** [assets/report-template.md](assets/report-template.md)
+- **Example:** [references/examples/sample-report.md](references/examples/sample-report.md)
 
 ---
 
