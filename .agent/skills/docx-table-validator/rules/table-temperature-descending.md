@@ -15,13 +15,6 @@ Ensure in temperature tables, when Temperature value is higher, the correspondin
 
 ### Target Identification
 
-**Chapter Scope:**
-
-```yaml
-scope:
-  chapters: [10] # Apply only in chapter 10
-```
-
 **Table Matcher:**
 
 ```yaml
@@ -29,7 +22,8 @@ matcher:
   type: column-headers
   columns:
     - Temperature
-    - Celsius Value
+  column-pattern: '\d+°C'
+  match-mode: contains
 ```
 
 ### Validation Logic

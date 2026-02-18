@@ -51,7 +51,7 @@ def parse_markdown_rules(md_content: str) -> dict:
         }
     """
     result = {
-        "table_matcher": {"columns": []},
+        "table_matcher": {"columns": [], "match_mode": "contains", "column_pattern": None},
         "rules": []
     }
     
@@ -59,21 +59,78 @@ def parse_markdown_rules(md_content: str) -> dict:
     current_section = None
     current_rule = None
     rule_id = 0
+    in_code_block = False
+    in_matcher_yaml = False
+    in_columns_list = False
     
     for line in lines:
         line_stripped = line.strip()
         
         # Identify sections
-        if line_stripped.startswith('## Table') or line_stripped.startswith('### Target'):
+        if not in_code_block and (line_stripped.startswith('## Table') or line_stripped.startswith('### Target') or line_stripped.startswith('### Phase 1')):
             current_section = 'matcher'
             continue
-        elif line_stripped.startswith('## Validation') or line_stripped.startswith('### Validation'):
+        elif not in_code_block and (line_stripped.startswith('## Validation') or line_stripped.startswith('### Validation') or line_stripped.startswith('### Phase 2')):
             current_section = 'rules'
+            in_matcher_yaml = False
+            in_code_block = False
+            in_columns_list = False
             continue
         
         # Parse table matcher
         if current_section == 'matcher':
-            if line_stripped.startswith('- '):
+            # Track code block boundaries
+            if line_stripped.startswith('```'):
+                if in_code_block:
+                    # Closing code block
+                    in_code_block = False
+                    in_matcher_yaml = False
+                    in_columns_list = False
+                else:
+                    # Opening code block
+                    in_code_block = True
+                    if 'yaml' in line_stripped:
+                        in_matcher_yaml = True
+                continue
+            
+            # Parse YAML code block content
+            if in_code_block and in_matcher_yaml:
+                # Detect "columns:" key
+                if re.match(r'^\s*columns:', line_stripped):
+                    # Inline list: columns: [A, B, C]
+                    inline_match = re.match(r'^\s*columns:\s*\[(.+)\]', line_stripped)
+                    if inline_match:
+                        cols = [c.strip().strip("'\"") for c in inline_match.group(1).split(',')]
+                        result["table_matcher"]["columns"].extend(cols)
+                    else:
+                        in_columns_list = True
+                    continue
+                
+                # List items under "columns:"
+                if in_columns_list:
+                    yaml_item = re.match(r'^\s*-\s+(.+)$', line_stripped)
+                    if yaml_item:
+                        col = yaml_item.group(1).strip().strip("'\"")
+                        result["table_matcher"]["columns"].append(col)
+                    elif line_stripped and not line_stripped.startswith('#'):
+                        in_columns_list = False
+                
+                # Extract match-mode
+                mode_match = re.match(r'^\s*match-mode:\s*(\S+)', line_stripped)
+                if mode_match:
+                    result["table_matcher"]["match_mode"] = mode_match.group(1).strip()
+                    in_columns_list = False
+                
+                # Extract column-pattern
+                pattern_match = re.match(r"^\s*column-pattern:\s*[\"'](.+?)[\"']", line_stripped)
+                if pattern_match:
+                    result["table_matcher"]["column_pattern"] = pattern_match.group(1)
+                    in_columns_list = False
+                
+                continue
+            
+            # Fallback: bullet list matchers (outside code blocks)
+            if not in_code_block and line_stripped.startswith('- '):
                 col = line_stripped[2:].strip()
                 result["table_matcher"]["columns"].append(col)
         
@@ -157,13 +214,39 @@ def load_rules_from_directory(rules_dir: str) -> list:
 
 
 def match_table_to_rules(table: dict, rules_list: list) -> Optional[dict]:
-    """Match applicable rules based on table columns"""
+    """Match applicable rules based on table columns and/or column patterns"""
     table_headers = set(h.strip() for h in table.get("headers", []))
     
     for rules in rules_list:
-        matcher_columns = set(rules["table_matcher"]["columns"])
-        if matcher_columns and matcher_columns.issubset(table_headers):
-            return rules
+        matcher = rules["table_matcher"]
+        matcher_columns = set(matcher.get("columns", []))
+        column_pattern = matcher.get("column_pattern")
+        
+        # Check exact columns (subset match)
+        exact_match = matcher_columns.issubset(table_headers) if matcher_columns else False
+        
+        # Check column pattern (regex against any header)
+        pattern_match = False
+        if column_pattern:
+            try:
+                regex = re.compile(column_pattern)
+                pattern_match = any(regex.search(h) for h in table_headers)
+            except re.error:
+                pass
+        
+        # Match logic:
+        # - If both exact columns and pattern: both must match
+        # - If only exact columns: exact must match
+        # - If only pattern: pattern must match
+        if matcher_columns and column_pattern:
+            if exact_match and pattern_match:
+                return rules
+        elif matcher_columns:
+            if exact_match:
+                return rules
+        elif column_pattern:
+            if pattern_match:
+                return rules
     
     # If no match, return common.md rules (if exists)
     for rules in rules_list:
