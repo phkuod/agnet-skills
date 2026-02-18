@@ -10,7 +10,7 @@ target: table
 
 **Severity:** ERROR
 
-Ensure required fields in tables are not empty. Empty values may cause incomplete data or processing failures.
+No empty value is allowed in any table under the **Reliability Rules** chapter. Every cell in every column must contain a value.
 
 ### Target Identification
 
@@ -18,43 +18,39 @@ Ensure required fields in tables are not empty. Empty values may cause incomplet
 
 ```yaml
 matcher:
-  type: column-headers
-  columns:
-    - Risk ID
-    - Description
-    - Impact Level
-    - Probability
+  type: section
+  section-pattern: "Reliability Rules"
+  match-mode: contains
 ```
+
+Tables are matched by their location under any heading containing "Reliability Rules".
 
 ### Validation Logic
 
-Check that all cells in specified columns have values.
-
-**Required Fields:**
-
-- Risk ID
-- Description
-- Impact Level
-- Probability
+For every matched table, check that **all cells in all columns** are non-empty.
 
 **Incorrect Example:**
 
 ```
-| Risk ID | Description    | Impact Level | Probability |
-|---------|----------------|--------------|-------------|
-| R001    | System failure | High         | Medium      |
-| R002    |                | Low          |             |  ← Description and Probability are empty
+## 10.1 EM Lifetime Data
+
+| Metal Layer  | 100°C | 150°C | 200°C |
+|--------------|-------|-------|-------|
+| Metal 1 (M1) | 12500 |       | 1800  |  ← 150°C is empty, ERROR
+| Metal 2 (M2) | 11000 | 4500  |       |  ← 200°C is empty, ERROR
 ```
 
 **Correct Example:**
 
 ```
-| Risk ID | Description    | Impact Level | Probability |
-|---------|----------------|--------------|-------------|
-| R001    | System failure | High         | Medium      |
-| R002    | Data loss      | Low          | Low         |
+## 10.1 EM Lifetime Data
+
+| Metal Layer  | 100°C | 150°C | 200°C |
+|--------------|-------|-------|-------|
+| Metal 1 (M1) | 12500 | 5200  | 1800  |
+| Metal 2 (M2) | 11000 | 4500  | 2700  |
 ```
 
 ### Exceptions
 
-None.
+- Header rows are not validated
