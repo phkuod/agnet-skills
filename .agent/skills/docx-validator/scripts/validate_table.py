@@ -1,21 +1,17 @@
 #!/usr/bin/env python3
 """
 validate_table.py - Validate table content
-
-Usage:
-    python validate_table.py <tables_json> --rules <rules_dir> --output <output_file>
-    
-Example:
-    python validate_table.py tables.json --rules rules/ --output results.json
 """
 
 import argparse
 import json
 import re
 import sys
+import os
+import subprocess
 from pathlib import Path
 from dataclasses import dataclass, asdict
-from typing import Optional
+from typing import Optional, List
 
 
 @dataclass
@@ -30,32 +26,34 @@ class ValidationError:
     severity: str  # "error" or "warning"
 
 
-@dataclass 
-class RuleDefinition:
-    """Rule definition"""
-    id: str
-    name: str
-    type: str  # not-empty, allowed-values, pattern, conditional, cross-reference, glossary
-    severity: str
-    config: dict
-
-
 def parse_markdown_rules(md_content: str) -> dict:
     """
-    Parse Markdown format rule file
-    
-    Returns:
-        {
-            "table_matcher": {"columns": [...]},
-            "rules": [RuleDefinition, ...]
-        }
+    Parse Markdown format rule file with YAML frontmatter
     """
     result = {
-        "table_matcher": {"columns": [], "match_mode": "contains", "column_pattern": None},
+        "id": None,
+        "title": None,
+        "script": None,
+        "table_matcher": {"columns": [], "match_mode": "contains", "column_pattern": None, "section_pattern": None},
         "rules": []
     }
     
-    lines = md_content.split('\n')
+    # Parse YAML frontmatter
+    frontmatter_match = re.search(r'^---\n(.*?)\n---', md_content, re.DOTALL)
+    if frontmatter_match:
+        import yaml
+        try:
+            fm = yaml.safe_load(frontmatter_match.group(1))
+            result["id"] = fm.get("id")
+            result["title"] = fm.get("title")
+            result["script"] = fm.get("script")
+        except:
+            pass
+            
+    # Remove frontmatter for content parsing
+    content = re.sub(r'^---\n.*?\n---\n', '', md_content, flags=re.DOTALL)
+    lines = content.split('\n')
+    
     current_section = None
     current_rule = None
     rule_id = 0
@@ -79,25 +77,19 @@ def parse_markdown_rules(md_content: str) -> dict:
         
         # Parse table matcher
         if current_section == 'matcher':
-            # Track code block boundaries
             if line_stripped.startswith('```'):
                 if in_code_block:
-                    # Closing code block
                     in_code_block = False
                     in_matcher_yaml = False
                     in_columns_list = False
                 else:
-                    # Opening code block
                     in_code_block = True
                     if 'yaml' in line_stripped:
                         in_matcher_yaml = True
                 continue
             
-            # Parse YAML code block content
             if in_code_block and in_matcher_yaml:
-                # Detect "columns:" key
                 if re.match(r'^\s*columns:', line_stripped):
-                    # Inline list: columns: [A, B, C]
                     inline_match = re.match(r'^\s*columns:\s*\[(.+)\]', line_stripped)
                     if inline_match:
                         cols = [c.strip().strip("'\"") for c in inline_match.group(1).split(',')]
@@ -106,7 +98,6 @@ def parse_markdown_rules(md_content: str) -> dict:
                         in_columns_list = True
                     continue
                 
-                # List items under "columns:"
                 if in_columns_list:
                     yaml_item = re.match(r'^\s*-\s+(.+)$', line_stripped)
                     if yaml_item:
@@ -115,27 +106,44 @@ def parse_markdown_rules(md_content: str) -> dict:
                     elif line_stripped and not line_stripped.startswith('#'):
                         in_columns_list = False
                 
-                # Extract match-mode
                 mode_match = re.match(r'^\s*match-mode:\s*(\S+)', line_stripped)
                 if mode_match:
                     result["table_matcher"]["match_mode"] = mode_match.group(1).strip()
                     in_columns_list = False
                 
-                # Extract column-pattern
                 pattern_match = re.match(r"^\s*column-pattern:\s*[\"'](.+?)[\"']", line_stripped)
                 if pattern_match:
                     result["table_matcher"]["column_pattern"] = pattern_match.group(1)
                     in_columns_list = False
                 
+                section_match = re.search(r'section-pattern:\s*["\'](.+?)["\']', line_stripped)
+                if section_match:
+                    result["table_matcher"]["section_pattern"] = section_match.group(1)
+                    in_columns_list = False
+                
                 continue
             
-            # Fallback: bullet list matchers (outside code blocks)
             if not in_code_block and line_stripped.startswith('- '):
                 col = line_stripped[2:].strip()
                 result["table_matcher"]["columns"].append(col)
         
         # Parse rules
         elif current_section == 'rules':
+            if 'exception' in line_stripped.lower():
+                current_section = 'exceptions'
+                continue
+                
+            # Default rule if none found yet
+            if not current_rule and ('empty' in line_stripped.lower() or 'required' in line_stripped.lower()):
+                current_rule = {
+                    "id": result["id"] or "rule-1",
+                    "name": result["title"] or "Rule",
+                    "type": "not-empty",
+                    "severity": "error",
+                    "config": {"columns": [], "values": [], "description": [line_stripped]}
+                }
+                continue
+
             # Rule title: ### Rule Name [ERROR]
             match = re.match(r'^###\s+(.+?)\s*\[(ERROR|WARNING)\]', line_stripped, re.IGNORECASE)
             if match:
@@ -151,48 +159,24 @@ def parse_markdown_rules(md_content: str) -> dict:
                     "name": rule_name,
                     "type": "unknown",
                     "severity": severity,
-                    "config": {
-                        "columns": [],
-                        "values": [],
-                        "pattern": None,
-                        "condition": None,
-                        "then": None,
-                        "description": []
-                    }
+                    "config": {"columns": [], "values": [], "pattern": None, "description": []}
                 }
                 continue
             
             if current_rule:
-                # Collect rule content
                 if line_stripped.startswith('- '):
                     item = line_stripped[2:].strip()
                     current_rule["config"]["columns"].append(item)
                     current_rule["config"]["values"].append(item)
                 
-                # Detect rule type
                 if 'empty' in line_stripped.lower() or 'required' in line_stripped.lower():
                     current_rule["type"] = "not-empty"
                 elif 'allowed' in line_stripped.lower() or 'values' in line_stripped.lower():
                     current_rule["type"] = "allowed-values"
-                elif 'format' in line_stripped.lower() and 'regex' in line_stripped.lower():
-                    current_rule["type"] = "pattern"
-                elif 'when' in line_stripped.lower() and 'then' in line_stripped.lower():
-                    current_rule["type"] = "conditional"
-                elif 'reference' in line_stripped.lower():
-                    current_rule["type"] = "cross-reference"
-                elif 'terminology' in line_stripped.lower():
-                    current_rule["type"] = "glossary"
                 
-                # Extract regex pattern
-                pattern_match = re.search(r'`([^^].*?)`', line_stripped)
-                if pattern_match and current_rule["type"] == "pattern":
-                    current_rule["config"]["pattern"] = pattern_match.group(1)
-                
-                # Record description
                 if line_stripped:
                     current_rule["config"]["description"].append(line_stripped)
     
-    # Add last rule
     if current_rule:
         result["rules"].append(current_rule)
     
@@ -200,247 +184,164 @@ def parse_markdown_rules(md_content: str) -> dict:
 
 
 def load_rules_from_directory(rules_dir: str) -> list:
-    """Load all rule files from rules directory"""
     rules_path = Path(rules_dir)
     all_rules = []
-    
     for md_file in rules_path.glob("*.md"):
+        if md_file.name.startswith('_'): continue
         content = md_file.read_text(encoding="utf-8")
         parsed = parse_markdown_rules(content)
         parsed["source_file"] = md_file.name
         all_rules.append(parsed)
-    
     return all_rules
 
 
-def match_table_to_rules(table: dict, rules_list: list) -> Optional[dict]:
-    """Match applicable rules based on table columns and/or column patterns"""
+def match_table_to_rules(table: dict, rules_list: list) -> List[dict]:
+    """Match applicable rules (can be multiple)"""
     table_headers = set(h.strip() for h in table.get("headers", []))
+    chapter = table.get("chapter", "All")
+    section = table.get("section", "All")
     
+    matched = []
     for rules in rules_list:
         matcher = rules["table_matcher"]
         matcher_columns = set(matcher.get("columns", []))
         column_pattern = matcher.get("column_pattern")
+        section_pattern = matcher.get("section_pattern")
         
-        # Check exact columns (subset match)
-        exact_match = matcher_columns.issubset(table_headers) if matcher_columns else False
+        # Match by columns
+        col_match = matcher_columns.issubset(table_headers) if matcher_columns else True
         
-        # Check column pattern (regex against any header)
-        pattern_match = False
+        # Match by column pattern
+        pat_match = True
         if column_pattern:
             try:
                 regex = re.compile(column_pattern)
-                pattern_match = any(regex.search(h) for h in table_headers)
-            except re.error:
-                pass
+                pat_match = any(regex.search(h) for h in table_headers)
+            except: pat_match = False
         
-        # Match logic:
-        # - If both exact columns and pattern: both must match
-        # - If only exact columns: exact must match
-        # - If only pattern: pattern must match
-        if matcher_columns and column_pattern:
-            if exact_match and pattern_match:
-                return rules
-        elif matcher_columns:
-            if exact_match:
-                return rules
-        elif column_pattern:
-            if pattern_match:
-                return rules
-    
-    # If no match, return common.md rules (if exists)
-    for rules in rules_list:
-        if rules.get("source_file") == "common.md":
-            return rules
-    
-    return None
+        # Match by section
+        sec_match = True
+        if section_pattern:
+            try:
+                regex = re.compile(section_pattern, re.IGNORECASE)
+                sec_match = regex.search(chapter) or regex.search(section)
+            except: sec_match = False
+            
+        if col_match and pat_match and sec_match:
+            if matcher_columns or column_pattern or section_pattern:
+                matched.append(rules)
+                
+    return matched
+
+
+def run_external_validator(script_path: str, table: dict) -> list:
+    """Run an external Python validator script"""
+    errors = []
+    try:
+        # Prepare temp file for single table
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as tmp:
+            json.dump(table, tmp)
+            tmp_path = tmp.name
+        
+        # Run script
+        script_abs_path = os.path.join(os.getcwd(), '.agent', 'skills', 'docx-validator', script_path)
+        if not os.path.exists(script_abs_path):
+            # Fallback to absolute if already absolute
+            script_abs_path = script_path
+            
+        proc = subprocess.run([sys.executable, script_abs_path, tmp_path], 
+                             capture_output=True, text=True, encoding='utf-8')
+        
+        # Cleanup
+        os.unlink(tmp_path)
+        
+        if proc.returncode != 0:
+            # Parse output lines
+            for line in proc.stdout.strip().split('\n'):
+                if 'Row' in line and ':' in line:
+                    msg = line.split(':', 1)[1].strip()
+                    # Optional: extract more details
+                    errors.append(ValidationError(
+                        table_index=table.get("index", 0),
+                        row=0, column="Unknown", rule_id="script", rule_name="External Script",
+                        message=msg, severity="error"
+                    ))
+    except Exception as e:
+        print(f"Error running script {script_path}: {e}")
+    return errors
 
 
 def validate_not_empty(table: dict, rule: dict) -> list:
-    """Validate required fields"""
     errors = []
-    columns = rule["config"]["columns"]
+    columns = rule["config"].get("columns", [])
     headers = table.get("headers", [])
-    
-    # If no columns specified, check all columns
-    if not columns or columns == ["All columns"]:
-        columns = headers
+    if not columns or columns == ["All columns"]: columns = headers
     
     for row_idx, row in enumerate(table.get("rows", []), start=2):
         for col_name in columns:
             if col_name in headers:
                 col_idx = headers.index(col_name)
                 if col_idx < len(row):
-                    value = row[col_idx].strip()
-                    if not value:
+                    val = row[col_idx].strip()
+                    if not val:
+                        print(f"      Found empty cell in {col_name} at row {row_idx}")
                         errors.append(ValidationError(
                             table_index=table.get("index", 0),
-                            row=row_idx,
-                            column=col_name,
-                            rule_id=rule["id"],
-                            rule_name=rule["name"],
-                            message="Field is empty",
-                            severity=rule["severity"]
+                            row=row_idx, column=col_name,
+                            rule_id=rule.get("id", "not-empty"),
+                            rule_name=rule.get("name", "Required Fields"),
+                            message="Field is empty", severity="error"
                         ))
-    
     return errors
-
-
-def validate_allowed_values(table: dict, rule: dict) -> list:
-    """Validate allowed values"""
-    errors = []
-    columns = rule["config"]["columns"]
-    allowed_values = set(rule["config"]["values"])
-    headers = table.get("headers", [])
-    
-    # Filter actual column names (not values in the list)
-    actual_columns = [c for c in columns if c in headers]
-    
-    if not actual_columns:
-        # If no explicit columns in rule description, try to extract from description
-        for desc in rule["config"].get("description", []):
-            for header in headers:
-                if header in desc and header not in actual_columns:
-                    actual_columns.append(header)
-    
-    for row_idx, row in enumerate(table.get("rows", []), start=2):
-        for col_name in actual_columns:
-            if col_name in headers:
-                col_idx = headers.index(col_name)
-                if col_idx < len(row):
-                    value = row[col_idx].strip()
-                    if value and value not in allowed_values:
-                        errors.append(ValidationError(
-                            table_index=table.get("index", 0),
-                            row=row_idx,
-                            column=col_name,
-                            rule_id=rule["id"],
-                            rule_name=rule["name"],
-                            message=f"Value \"{value}\" not in allowed values list",
-                            severity=rule["severity"]
-                        ))
-    
-    return errors
-
-
-def validate_pattern(table: dict, rule: dict) -> list:
-    """Validate format (regex)"""
-    errors = []
-    pattern = rule["config"].get("pattern")
-    columns = rule["config"]["columns"]
-    headers = table.get("headers", [])
-    
-    if not pattern:
-        return errors
-    
-    actual_columns = [c for c in columns if c in headers]
-    
-    try:
-        regex = re.compile(pattern)
-    except re.error:
-        return errors
-    
-    for row_idx, row in enumerate(table.get("rows", []), start=2):
-        for col_name in actual_columns:
-            if col_name in headers:
-                col_idx = headers.index(col_name)
-                if col_idx < len(row):
-                    value = row[col_idx].strip()
-                    if value and not regex.match(value):
-                        errors.append(ValidationError(
-                            table_index=table.get("index", 0),
-                            row=row_idx,
-                            column=col_name,
-                            rule_id=rule["id"],
-                            rule_name=rule["name"],
-                            message=f"Format does not match: {pattern}",
-                            severity=rule["severity"]
-                        ))
-    
-    return errors
-
-
-def validate_table(table: dict, rules: dict) -> list:
-    """Validate single table"""
-    all_errors = []
-    
-    for rule in rules.get("rules", []):
-        rule_type = rule.get("type", "unknown")
-        
-        if rule_type == "not-empty":
-            all_errors.extend(validate_not_empty(table, rule))
-        elif rule_type == "allowed-values":
-            all_errors.extend(validate_allowed_values(table, rule))
-        elif rule_type == "pattern":
-            all_errors.extend(validate_pattern(table, rule))
-        # conditional and cross-reference require more complex logic, handled by AI
-    
-    return all_errors
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Validate table content",
-        formatter_class=argparse.RawDescriptionHelpFormatter
-    )
-    
-    parser.add_argument("tables_json", help="Table JSON file (generated by extract_tables.py)")
-    parser.add_argument("--rules", "-r", required=True, help="Rules directory path")
-    parser.add_argument("--glossary", "-g", help="Glossary file path")
-    parser.add_argument("--output", "-o", help="Output JSON file path")
-    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("tables_json")
+    parser.add_argument("--rules", "-r", required=True)
+    parser.add_argument("--output", "-o")
     args = parser.parse_args()
     
-    # Read table data
     tables_data = json.loads(Path(args.tables_json).read_text(encoding="utf-8"))
-    
-    # Load rules
     rules_list = load_rules_from_directory(args.rules)
     
-    # Validate each table
-    results = {
-        "source_file": tables_data.get("source_file"),
-        "chapter": tables_data.get("chapter"),
-        "validation_results": []
-    }
+    results = {"source_file": tables_data.get("source_file"), "validation_results": []}
     
     for table in tables_data.get("tables", []):
-        # Match rules
         matched_rules = match_table_to_rules(table, rules_list)
-        
         table_result = {
             "table_index": table.get("index"),
-            "headers": table.get("headers"),
-            "matched_rules": matched_rules.get("source_file") if matched_rules else None,
+            "section": table.get("section"),
             "errors": [],
             "warnings": []
         }
         
-        if matched_rules:
-            errors = validate_table(table, matched_rules)
-            for error in errors:
-                error_dict = asdict(error)
-                if error.severity == "error":
-                    table_result["errors"].append(error_dict)
-                else:
-                    table_result["warnings"].append(error_dict)
+        for rule_file in matched_rules:
+            print(f"  Table {table.get('index')} matched {rule_file['source_file']}")
+            # Run external script if defined
+            if rule_file.get("script"):
+                ext_errors = run_external_validator(rule_file["script"], table)
+                for err in ext_errors:
+                    err.rule_id = rule_file.get("id") or "script"
+                    err.rule_name = rule_file.get("title") or "Script"
+                    table_result["errors"].append(asdict(err))
+            
+            # Run internal validators
+            for rule in rule_file.get("rules", []):
+                print(f"    Running internal rule: {rule['name']} ({rule['type']})")
+                if rule["type"] == "not-empty":
+                    errs = validate_not_empty(table, rule)
+                    for e in errs: table_result["errors"].append(asdict(e))
         
         results["validation_results"].append(table_result)
     
-    # Output result
-    output_json = json.dumps(results, ensure_ascii=False, indent=2)
-    
     if args.output:
-        Path(args.output).write_text(output_json, encoding="utf-8")
-        
-        # Statistics
-        total_errors = sum(len(r["errors"]) for r in results["validation_results"])
-        total_warnings = sum(len(r["warnings"]) for r in results["validation_results"])
-        print(f"Validation complete: {total_errors} error(s), {total_warnings} warning(s)")
-        print(f"Results saved to {args.output}")
+        Path(args.output).write_text(json.dumps(results, indent=2), encoding="utf-8")
+        total = sum(len(r["errors"]) for r in results["validation_results"])
+        print(f"Validation complete: {total} error(s)")
     else:
-        print(output_json)
-
+        print(json.dumps(results, indent=2))
 
 if __name__ == "__main__":
     main()
